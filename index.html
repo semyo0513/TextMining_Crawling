@@ -374,8 +374,14 @@
                 </label>
               </div>
 
+              <!-- WordCloud Card with Enlarge Button -->
               <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700">
-                <div class="text-xs font-bold text-purple-400 mb-2">선택 단어 워드클라우드 미리보기</div>
+                <div class="flex justify-between items-center mb-2">
+                  <div class="text-xs font-bold text-purple-400">선택 단어 워드클라우드 미리보기</div>
+                  <button id="btn-enlarge-wordcloud" class="bg-purple-600 hover:bg-purple-500 text-white text-[11px] px-2.5 py-1 rounded font-bold transition-colors flex items-center gap-1 shadow">
+                    <i class="fas fa-search-plus"></i> 🔍 확대보기
+                  </button>
+                </div>
                 <div class="bg-slate-950 rounded-lg overflow-hidden h-[220px] flex items-center justify-center">
                   <canvas id="morph-tab-wordcloud-canvas" class="w-full h-full"></canvas>
                 </div>
@@ -502,6 +508,60 @@
 
     </div>
   </main>
+
+  <!-- WordCloud Enlarged Modal Overlay -->
+  <div id="wordcloud-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="bg-slate-950 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fas fa-cloud text-purple-400"></i> ☁️ 워드클라우드 대형 시각화 확대보기
+        </h3>
+        <button id="close-wordcloud-modal-btn" class="text-slate-400 hover:text-white text-xl font-bold p-1 focus:outline-none">✕</button>
+      </div>
+
+      <!-- Toolbar for WordCloud Styling -->
+      <div class="bg-slate-950/60 px-6 py-3 border-b border-slate-800 flex flex-wrap gap-4 items-center text-xs">
+        <div class="flex items-center gap-2">
+          <label class="font-semibold text-slate-300">컬러 팔레트:</label>
+          <select id="wc-modal-color-theme" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 focus:outline-none focus:border-purple-500">
+            <option value="vibrant" selected>Vibrant Blue (기본)</option>
+            <option value="warm">Warm Gold (선셋)</option>
+            <option value="neon">Neon Pink &amp; Cyan</option>
+            <option value="slate">Monochromatic Slate</option>
+            <option value="rainbow">Rainbow</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="font-semibold text-slate-300">글꼴 (Font):</label>
+          <select id="wc-modal-font-family" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 focus:outline-none focus:border-purple-500">
+            <option value="Pretendard, sans-serif" selected>Pretendard</option>
+            <option value="Noto Sans KR, sans-serif">Noto Sans KR</option>
+            <option value="Gmarket Sans, sans-serif">Gmarket Sans</option>
+            <option value="Black Han Sans, sans-serif">Black Han Sans</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="font-semibold text-slate-300">회전 비율:</label>
+          <select id="wc-modal-rotate-ratio" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 focus:outline-none focus:border-purple-500">
+            <option value="0">수평 고정 (0%)</option>
+            <option value="0.35" selected>표준 회전 (35%)</option>
+            <option value="0.5">다양한 회전 (50%)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Modal Canvas Body -->
+      <div class="p-6 flex-1 flex items-center justify-center bg-slate-950 overflow-hidden relative">
+        <canvas id="wordcloud-modal-canvas" class="w-full h-[520px]"></canvas>
+      </div>
+
+      <div class="bg-slate-950 px-6 py-3 border-t border-slate-800 flex justify-end">
+        <button id="modal-wc-close-bottom-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700">닫기</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Comment Popup Modal Overlay -->
   <div id="comment-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">

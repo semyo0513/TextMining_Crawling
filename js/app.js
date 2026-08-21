@@ -1,9 +1,9 @@
 /**
  * Main Application Orchestrator & State Manager
- * POS Tag Filtering & Interactive Word Checklist Selection Pipeline
+ * Custom Stopwords & Sentiment Dictionary Upload/Download File Handlers
  */
 
-import { escapeHTML, showToast, decodeDataFromHash, exportToCSV, exportToJSON, getSampleComments } from './utils.js';
+import { escapeHTML, showToast, decodeDataFromHash, exportToCSV, exportToJSON, downloadSampleStopwords, downloadSampleSentimentDict, getSampleComments } from './utils.js';
 import { generateBookmarkletCode } from './bookmarklet-code.js';
 import { extractVideoId, fetchYoutubeComments } from './youtube-api.js';
 import { calculateWordFrequencies, calculateCoOccurrenceMatrix, filterCommentsByWord } from './textmining.js';
@@ -15,9 +15,9 @@ import { loadSentimentDict, evaluateCommentsSentiment, renderSentimentCharts } f
 export const AppState = {
   comments: [],
   analyzedComments: [],
-  rawTopWords: [],          // Unfiltered top words
-  topWords: [],             // User selected active top words
-  selectedWords: new Set(), // Set of selected word strings
+  rawTopWords: [],
+  topWords: [],
+  selectedWords: new Set(),
   networkData: { nodes: [], links: [] },
   sentimentData: null,
   activeTab: 'dashboard',
@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initApiCollector();
   initMiningControls();
   initWordSelectionQuickButtons();
+  initCustomFileImportExport();
   initModalEvents();
   initExportAndSampleButtons();
   checkUrlHashData();
@@ -108,17 +109,20 @@ export function switchTab(tabId) {
     }
   });
 
-  if (tabId === 'morphology' && AppState.topWords.length) {
-    renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
-    renderMorphologyPreviewTable();
-  } else if (tabId === 'network' && AppState.networkData.nodes.length) {
-    renderNetworkGraph('network-container', AppState.networkData, null, openCommentModal);
-  } else if (tabId === 'sentiment' && AppState.sentimentData) {
-    renderSentimentCharts('sentiment-tab-donut-chart', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
-  } else if (tabId === 'dashboard' && AppState.topWords.length) {
-    renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
-    renderSentimentCharts('dashboard-sentiment-donut', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
-  }
+  // Ensure canvas elements are visible before initializing D3/Chart.js
+  requestAnimationFrame(() => {
+    if (tabId === 'morphology' && AppState.topWords.length) {
+      renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
+      renderMorphologyPreviewTable();
+    } else if (tabId === 'network' && AppState.networkData.nodes.length) {
+      renderNetworkGraph('network-container', AppState.networkData, null, openCommentModal);
+    } else if (tabId === 'sentiment' && AppState.sentimentData) {
+      renderSentimentCharts('sentiment-tab-donut-chart', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
+    } else if (tabId === 'dashboard' && AppState.topWords.length) {
+      renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
+      renderSentimentCharts('dashboard-sentiment-donut', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
+    }
+  });
 }
 
 function initBookmarkletSection() {
@@ -199,7 +203,6 @@ function initApiCollector() {
 }
 
 function initMiningControls() {
-  // Min word length
   const minLenInput = document.getElementById('min-len-input');
   const minLenVal = document.getElementById('min-len-val');
   if (minLenInput && minLenVal) {
@@ -210,7 +213,6 @@ function initMiningControls() {
     });
   }
 
-  // POS Checkboxes
   const posCheckboxes = document.querySelectorAll('.pos-chk');
   posCheckboxes.forEach(chk => {
     chk.addEventListener('change', () => {
@@ -223,7 +225,6 @@ function initMiningControls() {
     });
   });
 
-  // Toggles
   const auxToggle1 = document.getElementById('remove-aux-verbs-toggle');
   const auxToggle2 = document.getElementById('tab-remove-aux-verbs');
   const conjToggle1 = document.getElementById('remove-conjunctions-toggle');
@@ -257,7 +258,6 @@ function initMiningControls() {
     });
   }
 
-  // Stopwords Tag Add
   const stopwordInput = document.getElementById('stopword-add-input');
   const stopwordAddBtn = document.getElementById('stopword-add-btn');
   if (stopwordAddBtn && stopwordInput) {
@@ -321,6 +321,94 @@ function initWordSelectionQuickButtons() {
     btnDeselectAll.addEventListener('click', () => {
       AppState.selectedWords.clear();
       recalculateActiveVisualizations();
+    });
+  }
+}
+
+/**
+ * Handle Stopwords TXT / Sentiment Dict JSON File Import & Export
+ */
+function initCustomFileImportExport() {
+  // 1. Download Stopwords Sample
+  const dlStopwordsBtn = document.getElementById('download-stopwords-btn');
+  if (dlStopwordsBtn) {
+    dlStopwordsBtn.addEventListener('click', () => {
+      downloadSampleStopwords(AppState.stopwords);
+    });
+  }
+
+  // 2. Upload Stopwords File (.txt or .json)
+  const ulStopwordsBtn = document.getElementById('upload-stopwords-btn');
+  const ulStopwordsFile = document.getElementById('upload-stopwords-file');
+
+  if (ulStopwordsBtn && ulStopwordsFile) {
+    ulStopwordsBtn.addEventListener('click', () => ulStopwordsFile.click());
+    ulStopwordsFile.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        try {
+          if (file.name.endsWith('.json')) {
+            const arr = JSON.parse(text);
+            if (Array.isArray(arr)) arr.forEach(w => AppState.stopwords.add(String(w).trim()));
+          } else {
+            // Line-separated or comma-separated TXT
+            const lines = text.split(/[\r\n,]+/);
+            lines.forEach(l => {
+              const clean = l.trim();
+              if (clean) AppState.stopwords.add(clean);
+            });
+          }
+          renderStopwordTags();
+          showToast(`📥 ${file.name} 파일에서 불용어가 성공적으로 로드되었습니다!`, 'success');
+          if (AppState.comments.length) triggerTextMining();
+        } catch (err) {
+          showToast('불용어 파일 파싱 오류. TXT 또는 JSON 형식을 확인하세요.', 'error');
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+      ulStopwordsFile.value = '';
+    });
+  }
+
+  // 3. Download Sentiment Dict Sample JSON
+  const dlSentimentBtn = document.getElementById('download-sentiment-btn');
+  if (dlSentimentBtn) {
+    dlSentimentBtn.addEventListener('click', () => {
+      downloadSampleSentimentDict(AppState.sentimentDict);
+    });
+  }
+
+  // 4. Upload Sentiment Dict File (.json)
+  const ulSentimentBtn = document.getElementById('upload-sentiment-btn');
+  const ulSentimentFile = document.getElementById('upload-sentiment-file');
+
+  if (ulSentimentBtn && ulSentimentFile) {
+    ulSentimentBtn.addEventListener('click', () => ulSentimentFile.click());
+    ulSentimentFile.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const customDict = JSON.parse(event.target.result);
+          if (typeof customDict === 'object' && customDict !== null) {
+            AppState.sentimentDict = { ...AppState.sentimentDict, ...customDict };
+            showToast(`📥 ${file.name} 커스텀 감정사전 적용 완료!`, 'success');
+            if (AppState.analyzedComments.length) runMiningPipeline();
+          } else {
+            throw new Error('JSON 개체 형식이 아닙니다.');
+          }
+        } catch (err) {
+          showToast('감정사전 JSON 파싱 오류. Key-Value 오브젝트 형태여야 합니다.', 'error');
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+      ulSentimentFile.value = '';
     });
   }
 }
@@ -404,10 +492,8 @@ export function triggerTextMining() {
 }
 
 function runMiningPipeline() {
-  // 1. Calculate All Frequency Words
   AppState.rawTopWords = calculateWordFrequencies(AppState.analyzedComments, 300);
 
-  // Initialize selectedWords set if empty
   if (AppState.selectedWords.size === 0 || AppState.selectedWords.size > AppState.rawTopWords.length) {
     AppState.selectedWords = new Set(AppState.rawTopWords.map(w => w.word));
   }
@@ -416,21 +502,14 @@ function runMiningPipeline() {
 }
 
 function recalculateActiveVisualizations() {
-  // Active top words filtered by selectedWords set
   AppState.topWords = AppState.rawTopWords.filter(w => AppState.selectedWords.has(w.word));
-
-  // Network co-occurrence
   AppState.networkData = calculateCoOccurrenceMatrix(AppState.analyzedComments, AppState.topWords, 40, 1);
-
-  // Sentiment evaluation
   AppState.sentimentData = evaluateCommentsSentiment(AppState.analyzedComments, AppState.sentimentDict);
 
-  // Update Counters & Preview Tables
   updateDashboardSummary();
   renderCommentsTable();
   renderMorphologyPreviewTable();
 
-  // Render Visualizations
   renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
   renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
   
@@ -487,9 +566,6 @@ function updateDashboardSummary() {
   }
 }
 
-/**
- * Render Interactive Word Selection Checklist Table
- */
 function renderMorphologyPreviewTable() {
   const tbody = document.getElementById('morph-words-tbody');
   const totalCountEl = document.getElementById('morph-total-words-count');
@@ -528,7 +604,6 @@ function renderMorphologyPreviewTable() {
       <td class="py-2 px-2 text-right font-mono font-bold text-blue-400">${item.count}</td>
     `;
 
-    // Toggle individual word checkbox
     const chk = tr.querySelector('.word-item-chk');
     chk.addEventListener('change', (e) => {
       const w = e.target.getAttribute('data-word');
@@ -540,7 +615,6 @@ function renderMorphologyPreviewTable() {
       recalculateActiveVisualizations();
     });
 
-    // Click word name opens modal
     const wordTextCell = tr.querySelector('[data-action="popup"]');
     wordTextCell.addEventListener('click', () => {
       openCommentModal(item.word);
@@ -566,7 +640,7 @@ function handleWordFilterClick(word) {
 }
 
 /**
- * Open Comment Modal Popup
+ * Open Comment Modal Popup for Double-Clicked Network Node / WordCloud Click
  */
 export function openCommentModal(word) {
   const modal = document.getElementById('comment-modal');

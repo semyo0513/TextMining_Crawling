@@ -29,21 +29,14 @@ export const AppState = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load Sentiment Dictionary
   AppState.sentimentDict = await loadSentimentDict();
-
-  // Initialize Worker
   initWorker();
-
-  // Initialize UI Events & Tabs
   initTabs();
   initBookmarkletSection();
   initApiCollector();
   initMiningControls();
   initModalEvents();
   initExportAndSampleButtons();
-
-  // Check URL Hash for Bookmarklet imported data
   checkUrlHashData();
 });
 
@@ -52,7 +45,6 @@ function initWorker() {
     AppState.worker = new Worker('./js/kiwi-worker.js');
     AppState.worker.onmessage = (e) => {
       const { type, progress, analyzedData } = e.data;
-      
       if (type === 'progress') {
         updateProgressUI(progress);
       } else if (type === 'complete') {
@@ -64,7 +56,7 @@ function initWorker() {
       }
     };
   } catch (err) {
-    console.error('Worker initialization failed:', err);
+    console.error('Worker init error:', err);
     showToast('Web Worker 로드 실패', 'error');
   }
 }
@@ -94,7 +86,6 @@ function initTabs() {
 export function switchTab(tabId) {
   AppState.activeTab = tabId;
   
-  // Tab Button Styling
   document.querySelectorAll('.tab-btn').forEach(btn => {
     if (btn.getAttribute('data-tab') === tabId) {
       btn.classList.add('bg-blue-600', 'text-white', 'shadow-md');
@@ -105,7 +96,6 @@ export function switchTab(tabId) {
     }
   });
 
-  // Tab Panel Visibility
   document.querySelectorAll('.tab-panel').forEach(panel => {
     if (panel.id === `tab-${tabId}`) {
       panel.classList.remove('hidden');
@@ -114,17 +104,16 @@ export function switchTab(tabId) {
     }
   });
 
-  // Re-render views on tab switch
   if (tabId === 'morphology' && AppState.topWords.length) {
     renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
     renderMorphologyPreviewTable();
   } else if (tabId === 'network' && AppState.networkData.nodes.length) {
     renderNetworkGraph('network-container', AppState.networkData, null, openCommentModal);
   } else if (tabId === 'sentiment' && AppState.sentimentData) {
-    renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
+    renderSentimentCharts('sentiment-tab-donut-chart', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
   } else if (tabId === 'dashboard' && AppState.topWords.length) {
     renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
-    renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
+    renderSentimentCharts('dashboard-sentiment-donut', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
   }
 }
 
@@ -161,6 +150,9 @@ function initApiCollector() {
   fetchBtn.addEventListener('click', async () => {
     const apiKey = document.getElementById('api-key-input')?.value?.trim();
     const videoUrl = document.getElementById('api-video-input')?.value?.trim();
+    const maxCount = parseInt(document.getElementById('api-max-count')?.value || '200', 10);
+    const order = document.getElementById('api-order-select')?.value || 'relevance';
+    const includeReplies = document.getElementById('api-include-replies')?.checked ?? true;
 
     if (!apiKey) {
       showToast('YouTube Data API Key를 입력해주세요.', 'error');
@@ -181,8 +173,9 @@ function initApiCollector() {
       const comments = await fetchYoutubeComments({
         apiKey,
         videoId,
-        maxCount: 200,
-        order: 'relevance',
+        maxCount,
+        order,
+        includeReplies,
         onProgress: (fetched, total) => {
           fetchBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${fetched} / ${total} 개 수집 중`;
         }
@@ -196,13 +189,12 @@ function initApiCollector() {
       showToast(err.message, 'error');
     } finally {
       fetchBtn.disabled = false;
-      fetchBtn.innerHTML = `<i class="fas fa-download mr-2"></i> 댓글 수집 시작`;
+      fetchBtn.innerHTML = `<i class="fas fa-download mr-2"></i> YouTube API 댓글 수집 시작`;
     }
   });
 }
 
 function initMiningControls() {
-  // Min word length
   const minLenInput = document.getElementById('min-len-input');
   const minLenVal = document.getElementById('min-len-val');
   if (minLenInput && minLenVal) {
@@ -213,7 +205,6 @@ function initMiningControls() {
     });
   }
 
-  // Toggles
   const auxToggle1 = document.getElementById('remove-aux-verbs-toggle');
   const auxToggle2 = document.getElementById('tab-remove-aux-verbs');
   const conjToggle1 = document.getElementById('remove-conjunctions-toggle');
@@ -243,11 +234,10 @@ function initMiningControls() {
   if (applyBtn) {
     applyBtn.addEventListener('click', () => {
       syncToggles();
-      showToast('형태소 정제 필터가 재적용되었습니다.', 'success');
+      showToast('형태소 정제 필터 재적용 완료', 'success');
     });
   }
 
-  // Stopwords Tag Add
   const stopwordInput = document.getElementById('stopword-add-input');
   const stopwordAddBtn = document.getElementById('stopword-add-btn');
   if (stopwordAddBtn && stopwordInput) {
@@ -348,31 +338,23 @@ export function triggerTextMining() {
 }
 
 function runMiningPipeline() {
-  // 1. Top Word Frequencies
   AppState.topWords = calculateWordFrequencies(AppState.analyzedComments, 100);
-
-  // 2. Co-occurrence Matrix
   AppState.networkData = calculateCoOccurrenceMatrix(AppState.analyzedComments, AppState.topWords, 35, 1);
-
-  // 3. Sentiment Analysis (5-level Polarity)
   AppState.sentimentData = evaluateCommentsSentiment(AppState.analyzedComments, AppState.sentimentDict);
 
-  // 4. Update Summary Cards
   updateDashboardSummary();
-
-  // 5. Render Current Visualizations
   renderCommentsTable();
   renderMorphologyPreviewTable();
 
-  if (AppState.activeTab === 'morphology') {
-    renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
-  } else if (AppState.activeTab === 'network') {
+  // Render Visualizations across canvases
+  renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
+  renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
+  
+  renderSentimentCharts('dashboard-sentiment-donut', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
+  renderSentimentCharts('sentiment-tab-donut-chart', 'sentiment-bar-chart', AppState.sentimentData, openCategoryCommentModal);
+
+  if (AppState.activeTab === 'network') {
     renderNetworkGraph('network-container', AppState.networkData, null, openCommentModal);
-  } else if (AppState.activeTab === 'sentiment') {
-    renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
-  } else if (AppState.activeTab === 'dashboard') {
-    renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
-    renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
   }
 }
 
@@ -391,7 +373,6 @@ function updateDashboardSummary() {
     if (negRatioEl) negRatioEl.innerText = `${negativeRatio}%`;
   }
 
-  // Best & Worst Cards
   const bestCard = document.getElementById('best-positive-card');
   const worstCard = document.getElementById('worst-negative-card');
 
@@ -441,10 +422,11 @@ function renderMorphologyPreviewTable() {
     }
 
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-slate-800/40 transition-colors';
+    tr.className = 'hover:bg-slate-800/40 transition-colors cursor-pointer';
+    tr.onclick = () => openCommentModal(item.word);
     tr.innerHTML = `
       <td class="py-2 px-2 font-mono text-slate-400">${index + 1}</td>
-      <td class="py-2 px-2 font-bold text-slate-200">${escapeHTML(item.word)}</td>
+      <td class="py-2 px-2 font-bold text-slate-200 hover:text-blue-400">${escapeHTML(item.word)}</td>
       <td class="py-2 px-2">${posBadge}</td>
       <td class="py-2 px-2 text-right font-mono font-bold text-blue-400">${item.count}</td>
     `;
@@ -468,7 +450,7 @@ function handleWordFilterClick(word) {
 }
 
 /**
- * Open Comment Modal Popup for Double-Clicked Network Node or WordCloud Click
+ * Open Comment Modal Popup for Double-Clicked Network Node / WordCloud Click
  */
 export function openCommentModal(word) {
   const modal = document.getElementById('comment-modal');
@@ -483,35 +465,59 @@ export function openCommentModal(word) {
   if (titleEl) titleEl.innerText = `"${word}"`;
   if (countEl) countEl.innerText = filtered.length;
 
+  renderModalCommentsList(tbody, filtered, word);
+  modal.classList.remove('hidden');
+}
+
+/**
+ * Open Comment Modal Popup for Sentiment Donut / Bar Chart Segment Click
+ */
+export function openCategoryCommentModal(categoryLabel, categoryKey) {
+  const modal = document.getElementById('comment-modal');
+  const titleEl = document.getElementById('modal-word-title');
+  const countEl = document.getElementById('modal-comment-count');
+  const tbody = document.getElementById('modal-comments-tbody');
+
+  if (!modal || !tbody || !AppState.sentimentData) return;
+
+  const filtered = AppState.sentimentData.comments.filter(c => c.sentimentCategory === categoryKey);
+
+  if (titleEl) titleEl.innerText = categoryLabel;
+  if (countEl) countEl.innerText = filtered.length;
+
+  renderModalCommentsList(tbody, filtered, null);
+  modal.classList.remove('hidden');
+}
+
+function renderModalCommentsList(tbody, filtered, highlightWord) {
   tbody.innerHTML = '';
 
   if (filtered.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">관련 댓글이 없습니다.</td></tr>`;
-  } else {
-    filtered.forEach((item, index) => {
-      const tr = document.createElement('tr');
-      tr.className = 'hover:bg-slate-800/40 transition-colors';
-
-      let highlightedText = escapeHTML(item.text);
-      if (word) {
-        const regex = new RegExp(`(${escapeHTML(word)})`, 'gi');
-        highlightedText = highlightedText.replace(regex, `<mark class="bg-blue-500/40 text-blue-200 px-1 rounded">$1</mark>`);
-      }
-
-      let badge = getSentimentBadgeMarkup(item);
-
-      tr.innerHTML = `
-        <td class="py-2.5 px-3 font-mono text-slate-400">${index + 1}</td>
-        <td class="py-2.5 px-3 font-semibold text-slate-300 max-w-[120px] truncate">${escapeHTML(item.author)}</td>
-        <td class="py-2.5 px-3 text-slate-200 leading-relaxed">${highlightedText}</td>
-        <td class="py-2.5 px-3 font-semibold text-amber-400"><i class="far fa-thumbs-up mr-1"></i>${item.likes || 0}</td>
-        <td class="py-2.5 px-3 text-center">${badge}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+    return;
   }
 
-  modal.classList.remove('hidden');
+  filtered.forEach((item, index) => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-800/40 transition-colors';
+
+    let highlightedText = escapeHTML(item.text);
+    if (highlightWord) {
+      const regex = new RegExp(`(${escapeHTML(highlightWord)})`, 'gi');
+      highlightedText = highlightedText.replace(regex, `<mark class="bg-blue-500/40 text-blue-200 px-1 rounded">$1</mark>`);
+    }
+
+    let badge = getSentimentBadgeMarkup(item);
+
+    tr.innerHTML = `
+      <td class="py-2.5 px-3 font-mono text-slate-400">${index + 1}</td>
+      <td class="py-2.5 px-3 font-semibold text-slate-300 max-w-[120px] truncate">${escapeHTML(item.author)}</td>
+      <td class="py-2.5 px-3 text-slate-200 leading-relaxed">${highlightedText}</td>
+      <td class="py-2.5 px-3 font-semibold text-amber-400"><i class="far fa-thumbs-up mr-1"></i>${item.likes || 0}</td>
+      <td class="py-2.5 px-3 text-center">${badge}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 function initModalEvents() {

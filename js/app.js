@@ -1,6 +1,6 @@
 /**
  * Main Application Orchestrator & State Manager
- * WordCloud Enlarged Modal UI/UX & Raw Comments Sentiment Score Binding Fix
+ * Inline Stem Word Double-Click Editor & WordCloud Enlarge Modal Rendering Fix
  */
 
 import { escapeHTML, showToast, decodeDataFromHash, exportToCSV, exportToJSON, downloadSampleStopwords, downloadSampleSentimentDict, getSampleComments } from './utils.js';
@@ -440,10 +440,13 @@ function initWordCloudModalEvents() {
   };
 
   if (openBtn) {
-    openBtn.addEventListener('click', () => {
+    openBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       if (modal) {
         modal.classList.remove('hidden');
-        requestAnimationFrame(() => updateModalWC());
+        setTimeout(() => {
+          updateModalWC();
+        }, 100);
       }
     });
   }
@@ -549,7 +552,6 @@ function recalculateActiveVisualizations() {
   AppState.networkData = calculateCoOccurrenceMatrix(AppState.analyzedComments, AppState.topWords, 40, 1);
   AppState.sentimentData = evaluateCommentsSentiment(AppState.analyzedComments, AppState.sentimentDict);
 
-  // CRITICAL FIX: Re-assign evaluated comments with sentimentScore back to AppState.analyzedComments!
   if (AppState.sentimentData && AppState.sentimentData.comments) {
     AppState.analyzedComments = AppState.sentimentData.comments;
   }
@@ -647,7 +649,7 @@ function renderMorphologyPreviewTable() {
         <input type="checkbox" class="word-item-chk accent-blue-500 w-4 h-4 rounded cursor-pointer" data-word="${escapeHTML(item.word)}" ${isChecked ? 'checked' : ''}>
       </td>
       <td class="py-2 px-2 font-mono text-slate-400 text-xs">${index + 1}</td>
-      <td class="py-2 px-2 font-bold text-slate-200 cursor-pointer hover:text-blue-400" data-action="popup">${escapeHTML(item.word)}</td>
+      <td class="py-2 px-2 font-bold text-slate-200 cursor-pointer hover:text-blue-400 stem-cell" title="더블클릭하여 텍스트 수정">${escapeHTML(item.word)}</td>
       <td class="py-2 px-2">${posBadge}</td>
       <td class="py-2 px-2 text-right font-mono font-bold text-blue-400">${item.count}</td>
     `;
@@ -663,9 +665,62 @@ function renderMorphologyPreviewTable() {
       recalculateActiveVisualizations();
     });
 
-    const wordTextCell = tr.querySelector('[data-action="popup"]');
-    wordTextCell.addEventListener('click', () => {
+    const stemCell = tr.querySelector('.stem-cell');
+    
+    // Single Click: Open Comment Modal
+    stemCell.addEventListener('click', () => {
       openCommentModal(item.word);
+    });
+
+    // Double Click: In-line Stem Text Editor!
+    stemCell.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      const currentWord = item.word;
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentWord;
+      input.className = 'bg-slate-900 border border-blue-500 rounded px-2 py-0.5 text-xs text-blue-300 font-bold w-full focus:outline-none';
+
+      stemCell.innerHTML = '';
+      stemCell.appendChild(input);
+      input.focus();
+      input.select();
+
+      const saveEdit = () => {
+        const newWord = input.value.trim();
+        if (newWord && newWord !== currentWord) {
+          // Rename word in rawTopWords & selectedWords
+          item.word = newWord;
+          if (AppState.selectedWords.has(currentWord)) {
+            AppState.selectedWords.delete(currentWord);
+            AppState.selectedWords.add(newWord);
+          }
+
+          // Replace token form in analyzedComments
+          AppState.analyzedComments.forEach(c => {
+            if (c.tokens) {
+              c.tokens.forEach(t => {
+                if (t.form === currentWord) t.form = newWord;
+              });
+            }
+          });
+
+          showToast(`✏️ 단어 원형 "${currentWord}" ➔ "${newWord}" 수정 완료!`, 'success');
+          recalculateActiveVisualizations();
+        } else {
+          stemCell.innerText = currentWord;
+        }
+      };
+
+      input.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Enter') saveEdit();
+        if (evt.key === 'Escape') stemCell.innerText = currentWord;
+      });
+
+      input.addEventListener('blur', () => {
+        saveEdit();
+      });
     });
 
     tbody.appendChild(tr);

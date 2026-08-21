@@ -1,5 +1,6 @@
 /**
  * WordCloud2.js Rendering & Customizable UI/UX Options Module
+ * Guarantees Non-Zero Canvas Sizing & Multi-Modal Enlarged Rendering
  */
 
 const PALETTES = {
@@ -32,11 +33,18 @@ export function renderWordCloud(canvasId, wordList, onWordClick, config = {}) {
     return;
   }
 
+  // Ensure canvas has explicit non-zero dimensions
   const container = canvas.parentElement;
+  let targetWidth = 800;
+  let targetHeight = 480;
+
   if (container) {
-    canvas.width = container.clientWidth || 800;
-    canvas.height = container.clientHeight || 480;
+    if (container.clientWidth > 100) targetWidth = container.clientWidth;
+    if (container.clientHeight > 100) targetHeight = container.clientHeight;
   }
+
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
 
   const maxCount = wordList[0]?.count || 1;
   const list = wordList.map(item => {
@@ -48,7 +56,7 @@ export function renderWordCloud(canvasId, wordList, onWordClick, config = {}) {
 
   const options = {
     list: list,
-    gridSize: Math.round(14 * canvas.width / 1024),
+    gridSize: Math.max(8, Math.round(14 * canvas.width / 1024)),
     weightFactor: 1,
     fontFamily: fontFamily,
     color: function () {

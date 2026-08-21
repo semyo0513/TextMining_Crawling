@@ -345,7 +345,7 @@
               <h3 class="text-base font-bold text-white flex items-center gap-2">
                 <i class="fas fa-cogs text-purple-400"></i> 형태소 정제 세부 설정 &amp; 분석 단어 선택 목록
               </h3>
-              <p class="text-xs text-slate-400">체크한 단어만 워드클라우드, 연관어 네트워크, 감정 분석에 즉시 반영됩니다.</p>
+              <p class="text-xs text-slate-400">단어 원형을 <strong>더블클릭</strong>하면 인라인으로 직접 수정할 수 있습니다.</p>
             </div>
             <button id="apply-morph-settings-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md">
               <i class="fas fa-sync mr-1"></i> 형태소 필터 재분석
@@ -419,7 +419,7 @@
                     <tr class="border-b border-slate-800 text-slate-400 bg-slate-950/40 sticky top-0 z-10">
                       <th class="py-2 px-2 w-8 text-center">선택</th>
                       <th class="py-2 px-2 w-10">순위</th>
-                      <th class="py-2 px-2">단어 원형 (Stem)</th>
+                      <th class="py-2 px-2">단어 원형 (Stem - 💡 더블클릭 수정)</th>
                       <th class="py-2 px-2 w-20">품사</th>
                       <th class="py-2 px-2 w-16 text-right">출현 빈도</th>
                     </tr>
@@ -554,7 +554,9 @@
 
       <!-- Modal Canvas Body -->
       <div class="p-6 flex-1 flex items-center justify-center bg-slate-950 overflow-hidden relative">
-        <canvas id="wordcloud-modal-canvas" class="w-full h-[520px]"></canvas>
+        <div id="wordcloud-modal-canvas-wrapper" class="w-[880px] h-[480px] flex items-center justify-center relative">
+          <canvas id="wordcloud-modal-canvas" class="w-full h-full"></canvas>
+        </div>
       </div>
 
       <div class="bg-slate-950 px-6 py-3 border-t border-slate-800 flex justify-end">

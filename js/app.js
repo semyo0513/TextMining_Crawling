@@ -1,5 +1,6 @@
 /**
  * Main Application Orchestrator & State Manager
+ * POS Tag Filtering & Interactive Word Checklist Selection Pipeline
  */
 
 import { escapeHTML, showToast, decodeDataFromHash, exportToCSV, exportToJSON, getSampleComments } from './utils.js';
@@ -14,7 +15,9 @@ import { loadSentimentDict, evaluateCommentsSentiment, renderSentimentCharts } f
 export const AppState = {
   comments: [],
   analyzedComments: [],
-  topWords: [],
+  rawTopWords: [],          // Unfiltered top words
+  topWords: [],             // User selected active top words
+  selectedWords: new Set(), // Set of selected word strings
   networkData: { nodes: [], links: [] },
   sentimentData: null,
   activeTab: 'dashboard',
@@ -35,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBookmarkletSection();
   initApiCollector();
   initMiningControls();
+  initWordSelectionQuickButtons();
   initModalEvents();
   initExportAndSampleButtons();
   checkUrlHashData();
@@ -195,6 +199,7 @@ function initApiCollector() {
 }
 
 function initMiningControls() {
+  // Min word length
   const minLenInput = document.getElementById('min-len-input');
   const minLenVal = document.getElementById('min-len-val');
   if (minLenInput && minLenVal) {
@@ -205,6 +210,20 @@ function initMiningControls() {
     });
   }
 
+  // POS Checkboxes
+  const posCheckboxes = document.querySelectorAll('.pos-chk');
+  posCheckboxes.forEach(chk => {
+    chk.addEventListener('change', () => {
+      const selected = [];
+      posCheckboxes.forEach(c => {
+        if (c.checked) selected.push(c.value);
+      });
+      AppState.posFilter = selected;
+      if (AppState.comments.length) triggerTextMining();
+    });
+  });
+
+  // Toggles
   const auxToggle1 = document.getElementById('remove-aux-verbs-toggle');
   const auxToggle2 = document.getElementById('tab-remove-aux-verbs');
   const conjToggle1 = document.getElementById('remove-conjunctions-toggle');
@@ -238,6 +257,7 @@ function initMiningControls() {
     });
   }
 
+  // Stopwords Tag Add
   const stopwordInput = document.getElementById('stopword-add-input');
   const stopwordAddBtn = document.getElementById('stopword-add-btn');
   if (stopwordAddBtn && stopwordInput) {
@@ -257,6 +277,52 @@ function initMiningControls() {
   }
 
   renderStopwordTags();
+}
+
+function initWordSelectionQuickButtons() {
+  const btnSelectAll = document.getElementById('btn-select-all-words');
+  const btnTop50 = document.getElementById('btn-select-top-50');
+  const btnTop100 = document.getElementById('btn-select-top-100');
+  const btnTop200 = document.getElementById('btn-select-top-200');
+  const btnDeselectAll = document.getElementById('btn-deselect-all-words');
+
+  if (btnSelectAll) {
+    btnSelectAll.addEventListener('click', () => {
+      AppState.selectedWords = new Set(AppState.rawTopWords.map(w => w.word));
+      recalculateActiveVisualizations();
+    });
+  }
+
+  if (btnTop50) {
+    btnTop50.addEventListener('click', () => {
+      const top50 = AppState.rawTopWords.slice(0, 50).map(w => w.word);
+      AppState.selectedWords = new Set(top50);
+      recalculateActiveVisualizations();
+    });
+  }
+
+  if (btnTop100) {
+    btnTop100.addEventListener('click', () => {
+      const top100 = AppState.rawTopWords.slice(0, 100).map(w => w.word);
+      AppState.selectedWords = new Set(top100);
+      recalculateActiveVisualizations();
+    });
+  }
+
+  if (btnTop200) {
+    btnTop200.addEventListener('click', () => {
+      const top200 = AppState.rawTopWords.slice(0, 200).map(w => w.word);
+      AppState.selectedWords = new Set(top200);
+      recalculateActiveVisualizations();
+    });
+  }
+
+  if (btnDeselectAll) {
+    btnDeselectAll.addEventListener('click', () => {
+      AppState.selectedWords.clear();
+      recalculateActiveVisualizations();
+    });
+  }
 }
 
 function renderStopwordTags() {
@@ -338,15 +404,33 @@ export function triggerTextMining() {
 }
 
 function runMiningPipeline() {
-  AppState.topWords = calculateWordFrequencies(AppState.analyzedComments, 100);
-  AppState.networkData = calculateCoOccurrenceMatrix(AppState.analyzedComments, AppState.topWords, 35, 1);
+  // 1. Calculate All Frequency Words
+  AppState.rawTopWords = calculateWordFrequencies(AppState.analyzedComments, 300);
+
+  // Initialize selectedWords set if empty
+  if (AppState.selectedWords.size === 0 || AppState.selectedWords.size > AppState.rawTopWords.length) {
+    AppState.selectedWords = new Set(AppState.rawTopWords.map(w => w.word));
+  }
+
+  recalculateActiveVisualizations();
+}
+
+function recalculateActiveVisualizations() {
+  // Active top words filtered by selectedWords set
+  AppState.topWords = AppState.rawTopWords.filter(w => AppState.selectedWords.has(w.word));
+
+  // Network co-occurrence
+  AppState.networkData = calculateCoOccurrenceMatrix(AppState.analyzedComments, AppState.topWords, 40, 1);
+
+  // Sentiment evaluation
   AppState.sentimentData = evaluateCommentsSentiment(AppState.analyzedComments, AppState.sentimentDict);
 
+  // Update Counters & Preview Tables
   updateDashboardSummary();
   renderCommentsTable();
   renderMorphologyPreviewTable();
 
-  // Render Visualizations across canvases
+  // Render Visualizations
   renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
   renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
   
@@ -403,33 +487,65 @@ function updateDashboardSummary() {
   }
 }
 
+/**
+ * Render Interactive Word Selection Checklist Table
+ */
 function renderMorphologyPreviewTable() {
-  const tbody = document.getElementById('morph-top-words-tbody');
+  const tbody = document.getElementById('morph-words-tbody');
+  const totalCountEl = document.getElementById('morph-total-words-count');
+  const selectedCountEl = document.getElementById('morph-selected-words-count');
+
   if (!tbody) return;
 
-  tbody.innerHTML = '';
-  const top20 = AppState.topWords.slice(0, 20);
+  if (totalCountEl) totalCountEl.innerText = AppState.rawTopWords.length;
+  if (selectedCountEl) selectedCountEl.innerText = AppState.selectedWords.size;
 
-  if (top20.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">분석된 데이터가 없습니다.</td></tr>`;
+  tbody.innerHTML = '';
+
+  if (AppState.rawTopWords.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">분석된 데이터가 없습니다.</td></tr>`;
     return;
   }
 
-  top20.forEach((item, index) => {
+  AppState.rawTopWords.forEach((item, index) => {
+    const isChecked = AppState.selectedWords.has(item.word);
+
     let posBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">명사</span>`;
     if (item.word.endsWith('다')) {
       posBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">용언(+다)</span>`;
     }
 
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-slate-800/40 transition-colors cursor-pointer';
-    tr.onclick = () => openCommentModal(item.word);
+    tr.className = `hover:bg-slate-800/60 transition-colors ${isChecked ? '' : 'opacity-40 bg-slate-950/30'}`;
+    
     tr.innerHTML = `
-      <td class="py-2 px-2 font-mono text-slate-400">${index + 1}</td>
-      <td class="py-2 px-2 font-bold text-slate-200 hover:text-blue-400">${escapeHTML(item.word)}</td>
+      <td class="py-2 px-2 text-center">
+        <input type="checkbox" class="word-item-chk accent-blue-500 w-4 h-4 rounded cursor-pointer" data-word="${escapeHTML(item.word)}" ${isChecked ? 'checked' : ''}>
+      </td>
+      <td class="py-2 px-2 font-mono text-slate-400 text-xs">${index + 1}</td>
+      <td class="py-2 px-2 font-bold text-slate-200 cursor-pointer hover:text-blue-400" data-action="popup">${escapeHTML(item.word)}</td>
       <td class="py-2 px-2">${posBadge}</td>
       <td class="py-2 px-2 text-right font-mono font-bold text-blue-400">${item.count}</td>
     `;
+
+    // Toggle individual word checkbox
+    const chk = tr.querySelector('.word-item-chk');
+    chk.addEventListener('change', (e) => {
+      const w = e.target.getAttribute('data-word');
+      if (e.target.checked) {
+        AppState.selectedWords.add(w);
+      } else {
+        AppState.selectedWords.delete(w);
+      }
+      recalculateActiveVisualizations();
+    });
+
+    // Click word name opens modal
+    const wordTextCell = tr.querySelector('[data-action="popup"]');
+    wordTextCell.addEventListener('click', () => {
+      openCommentModal(item.word);
+    });
+
     tbody.appendChild(tr);
   });
 }
@@ -450,7 +566,7 @@ function handleWordFilterClick(word) {
 }
 
 /**
- * Open Comment Modal Popup for Double-Clicked Network Node / WordCloud Click
+ * Open Comment Modal Popup
  */
 export function openCommentModal(word) {
   const modal = document.getElementById('comment-modal');

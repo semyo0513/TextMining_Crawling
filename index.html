@@ -89,6 +89,29 @@
           <input type="range" id="min-len-input" min="1" max="5" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
         </div>
 
+        <!-- POS Checkboxes -->
+        <div class="space-y-2">
+          <label class="text-xs font-bold text-slate-300 block">포함할 품사 선택</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
+              <input type="checkbox" id="pos-noun-chk" checked class="pos-chk accent-blue-500 rounded" value="NNG">
+              <span class="text-slate-200">명사 (NNG/NNP)</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
+              <input type="checkbox" id="pos-verb-chk" checked class="pos-chk accent-purple-500 rounded" value="VV">
+              <span class="text-slate-200">동사 (VV +다)</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
+              <input type="checkbox" id="pos-adj-chk" checked class="pos-chk accent-emerald-500 rounded" value="VA">
+              <span class="text-slate-200">형용사 (VA +다)</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
+              <input type="checkbox" id="pos-adv-chk" checked class="pos-chk accent-amber-500 rounded" value="MAG">
+              <span class="text-slate-200">부사 (MAG)</span>
+            </label>
+          </div>
+        </div>
+
         <!-- Auxiliary Verbs & Conjunctions Toggles -->
         <div class="space-y-2 text-xs">
           <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/80 cursor-pointer hover:bg-slate-900">
@@ -136,7 +159,7 @@
           <i class="fas fa-cut text-blue-400"></i> 댓글 수집기 (북마클릿 / API)
         </button>
         <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="morphology">
-          <i class="fas fa-cogs text-purple-400"></i> ⚙️ 형태소 정제 설정
+          <i class="fas fa-cogs text-purple-400"></i> ⚙️ 형태소 정제 &amp; 단어 선택
         </button>
         <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="network">
           <i class="fas fa-project-diagram text-teal-400"></i> 연관어 네트워크
@@ -157,7 +180,7 @@
             <div class="text-2xl font-black text-slate-100 font-mono" id="summary-total-comments">0</div>
           </div>
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
-            <div class="text-xs text-slate-400 font-semibold mb-1">추출 고유 단어 수</div>
+            <div class="text-xs text-slate-400 font-semibold mb-1">선택 정제 단어 수</div>
             <div class="text-2xl font-black text-blue-400 font-mono" id="summary-unique-words">0</div>
           </div>
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
@@ -206,14 +229,13 @@
         </div>
       </section>
 
-      <!-- Tab 2: Collector Mode A (Listly Bookmarklet) & Mode B (YouTube API v3) -->
+      <!-- Tab 2: Collector -->
       <section id="tab-collector" class="tab-panel hidden space-y-6">
-        <!-- Mode A Card -->
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
           <div class="flex items-center justify-between border-b border-slate-700 pb-4">
             <div>
               <span class="text-xs font-bold text-blue-400 bg-blue-950 px-2.5 py-1 rounded-full border border-blue-800">모드 A (Listly 방식)</span>
-              <h3 class="text-base font-bold text-white mt-2">✂️ 원클릭 북마클릿 댓글 영역 추출기 (API 키 0원)</h3>
+              <h3 class="text-base font-bold text-white mt-2">✂️ 원클릭 북마클릿 댓글 영역 추출기</h3>
             </div>
             <span class="text-xs text-emerald-400 font-semibold"><i class="fas fa-check-circle mr-1"></i> Listly 프로그램 방식 인스펙터</span>
           </div>
@@ -238,11 +260,10 @@
           </div>
         </div>
 
-        <!-- Mode B Card: Restored YouTube Data API v3 Collector Settings -->
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
           <div class="border-b border-slate-700 pb-4">
             <span class="text-xs font-bold text-purple-400 bg-purple-950 px-2.5 py-1 rounded-full border border-purple-800">모드 B</span>
-            <h3 class="text-base font-bold text-white mt-2">🔑 YouTube Data API v3 심층 수집기 (대량 &amp; 대댓글 수집)</h3>
+            <h3 class="text-base font-bold text-white mt-2">🔑 YouTube Data API v3 심층 수집기</h3>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -288,23 +309,24 @@
         </div>
       </section>
 
-      <!-- Tab 3: Morphological Cleaning Settings -->
+      <!-- Tab 3: Morphological Cleaning & Word Selection Tab -->
       <section id="tab-morphology" class="tab-panel hidden space-y-6">
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
-          <div class="border-b border-slate-700 pb-3 flex justify-between items-center">
+          <div class="border-b border-slate-700 pb-3 flex flex-wrap justify-between items-center gap-3">
             <div>
               <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fas fa-cogs text-purple-400"></i> 형태소 정제 세부 설정 &amp; 정제 결과 미리보기
+                <i class="fas fa-cogs text-purple-400"></i> 형태소 정제 세부 설정 &amp; 분석 단어 선택 목록
               </h3>
-              <p class="text-xs text-slate-400">용언 원형화(+다), 보조용언 제거 및 불용어를 정밀하게 필터링합니다.</p>
+              <p class="text-xs text-slate-400">체크한 단어만 워드클라우드, 연관어 네트워크, 감정 분석에 즉시 반영됩니다.</p>
             </div>
             <button id="apply-morph-settings-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md">
-              <i class="fas fa-sync mr-1"></i> 정제 필터 즉시 적용
+              <i class="fas fa-sync mr-1"></i> 형태소 필터 재분석
             </button>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <!-- Left Controls (Col 5) -->
+            <div class="md:col-span-5 space-y-4">
               <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 space-y-3">
                 <div class="text-xs font-bold text-blue-400 uppercase">불용어 &amp; 보조용언 필터 규칙</div>
                 
@@ -326,30 +348,54 @@
               </div>
 
               <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700">
-                <div class="text-xs font-bold text-purple-400 mb-2">정제 단어 워드클라우드 미리보기</div>
-                <div class="bg-slate-950 rounded-lg overflow-hidden h-[240px] flex items-center justify-center">
+                <div class="text-xs font-bold text-purple-400 mb-2">선택 단어 워드클라우드 미리보기</div>
+                <div class="bg-slate-950 rounded-lg overflow-hidden h-[220px] flex items-center justify-center">
                   <canvas id="morph-tab-wordcloud-canvas" class="w-full h-full"></canvas>
                 </div>
               </div>
             </div>
 
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 flex flex-col">
-              <div class="text-xs font-bold text-emerald-400 mb-3 flex items-center justify-between">
-                <span><i class="fas fa-list-ol mr-1"></i> 상위 정제 단어 TOP 20</span>
-                <span class="text-[11px] text-slate-400">표준화된 정제 어휘</span>
+            <!-- Right Interactive Selection Table (Col 7) -->
+            <div class="md:col-span-7 bg-slate-900/60 p-4 rounded-xl border border-slate-700 flex flex-col space-y-3">
+              <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2">
+                <div class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+                  <i class="fas fa-check-square"></i> 추출 단어 선택 (총 <span id="morph-total-words-count" class="font-mono font-bold text-white">0</span>개 중 <span id="morph-selected-words-count" class="font-mono font-bold text-blue-400">0</span>개 선택)
+                </div>
               </div>
+
+              <!-- Quick Selection Button Bar -->
+              <div class="flex flex-wrap gap-1.5 text-xs">
+                <button id="btn-select-all-words" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded font-semibold transition-colors">
+                  ☑️ 모두 선택
+                </button>
+                <button id="btn-select-top-50" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded font-semibold transition-colors">
+                  TOP 50
+                </button>
+                <button id="btn-select-top-100" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded font-semibold transition-colors">
+                  TOP 100
+                </button>
+                <button id="btn-select-top-200" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded font-semibold transition-colors">
+                  TOP 200
+                </button>
+                <button id="btn-deselect-all-words" class="bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 px-2.5 py-1 rounded font-semibold transition-colors">
+                  ☐ 모두 해제
+                </button>
+              </div>
+
+              <!-- Interactive Word Selection Table -->
               <div class="flex-1 overflow-y-auto max-h-[420px] pr-1">
                 <table class="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr class="border-b border-slate-800 text-slate-400">
+                    <tr class="border-b border-slate-800 text-slate-400 bg-slate-950/40 sticky top-0 z-10">
+                      <th class="py-2 px-2 w-8 text-center">선택</th>
                       <th class="py-2 px-2 w-10">순위</th>
-                      <th class="py-2 px-2">원형화 단어 (Stem)</th>
+                      <th class="py-2 px-2">단어 원형 (Stem)</th>
                       <th class="py-2 px-2 w-20">품사</th>
                       <th class="py-2 px-2 w-16 text-right">출현 빈도</th>
                     </tr>
                   </thead>
-                  <tbody id="morph-top-words-tbody" class="divide-y divide-slate-800">
-                    <tr><td colspan="4" class="py-6 text-center text-slate-500">분석된 데이터가 없습니다.</td></tr>
+                  <tbody id="morph-words-tbody" class="divide-y divide-slate-800">
+                    <tr><td colspan="5" class="py-6 text-center text-slate-500">분석된 데이터가 없습니다.</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -433,7 +479,7 @@
     </div>
   </main>
 
-  <!-- Comment Popup Modal Overlay (Double-Click Node / Chart Segment Popup) -->
+  <!-- Comment Popup Modal Overlay -->
   <div id="comment-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
       <div class="bg-slate-950 px-6 py-4 border-b border-slate-800 flex justify-between items-center">

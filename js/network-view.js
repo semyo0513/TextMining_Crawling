@@ -1,12 +1,12 @@
 /**
  * D3.js v7 Force Simulation Co-occurrence Network Visualization
+ * Supporting Single-Click (Highlight Neighbor Nodes) and Double-Click (Open Comments Popup Modal)
  */
 
-export function renderNetworkGraph(containerId, networkData, onNodeClick) {
+export function renderNetworkGraph(containerId, networkData, onNodeSingleClick, onNodeDoubleClick) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  // Clear previous contents
   container.innerHTML = '';
 
   const { nodes, links } = networkData;
@@ -22,7 +22,6 @@ export function renderNetworkGraph(containerId, networkData, onNodeClick) {
   const width = container.clientWidth || 800;
   const height = 550;
 
-  // Create SVG element
   const d3 = window.d3;
   if (!d3) {
     container.innerHTML = `<div class="p-4 text-red-400">D3.js 라이브러리가 로드되지 않았습니다.</div>`;
@@ -34,10 +33,9 @@ export function renderNetworkGraph(containerId, networkData, onNodeClick) {
     .attr('id', 'network-svg')
     .attr('viewBox', [0, 0, width, height]);
 
-  // Main group for Zooming/Panning
   const g = svg.append('g');
 
-  // Zoom behavior setup
+  // Zoom behavior
   const zoom = d3.zoom()
     .scaleExtent([0.2, 5])
     .on('zoom', (event) => {
@@ -46,29 +44,24 @@ export function renderNetworkGraph(containerId, networkData, onNodeClick) {
 
   svg.call(zoom);
 
-  // Maximum value for scaling
+  // Background SVG click resets highlights
+  svg.on('click', (event) => {
+    if (event.target.tagName === 'svg' || event.target.id === 'network-svg') {
+      resetHighlights();
+    }
+  });
+
   const maxCount = d3.max(nodes, d => d.count) || 1;
   const maxLinkValue = d3.max(links, d => d.value) || 1;
 
-  // Node radius scale
-  const rScale = d3.scaleSqrt()
-    .domain([1, maxCount])
-    .range([12, 32]);
+  const rScale = d3.scaleSqrt().domain([1, maxCount]).range([14, 34]);
+  const strokeScale = d3.scaleLinear().domain([1, maxLinkValue]).range([1.5, 7]);
+  const colorScale = d3.scaleSequential().domain([1, maxCount]).interpolator(d3.interpolateBlues);
 
-  // Edge stroke-width scale
-  const strokeScale = d3.scaleLinear()
-    .domain([1, maxLinkValue])
-    .range([1.5, 7]);
-
-  // Color scale for nodes
-  const colorScale = d3.scaleSequential()
-    .domain([1, maxCount])
-    .interpolator(d3.interpolateBlues);
-
-  // D3 Force Simulation setup
+  // D3 Force Simulation
   const simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(100))
-    .force('charge', d3.forceManyBody().strength(-240))
+    .force('link', d3.forceLink(links).id(d => d.id).distance(110))
+    .force('charge', d3.forceManyBody().strength(-260))
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collide', d3.forceCollide(d => rScale(d.count) + 12));
 
@@ -80,7 +73,8 @@ export function renderNetworkGraph(containerId, networkData, onNodeClick) {
     .join('line')
     .attr('class', 'net-link')
     .attr('stroke', '#475569')
-    .attr('stroke-width', d => strokeScale(d.value));
+    .attr('stroke-width', d => strokeScale(d.value))
+    .style('transition', 'opacity 0.2s ease, stroke 0.2s ease');
 
   // Render Node Groups
   const node = g.append('g')
@@ -89,24 +83,26 @@ export function renderNetworkGraph(containerId, networkData, onNodeClick) {
     .data(nodes)
     .join('g')
     .attr('class', 'net-node')
+    .style('cursor', 'pointer')
     .call(drag(simulation, d3));
 
   // Node Circles
-  node.append('circle')
+  const circles = node.append('circle')
     .attr('r', d => rScale(d.count))
     .attr('fill', d => d.count === maxCount ? '#3b82f6' : colorScale(d.count))
     .attr('stroke', d => d.count === maxCount ? '#60a5fa' : '#1e293b')
     .attr('stroke-width', d => d.count === maxCount ? 3 : 1.5)
-    .style('filter', d => d.count === maxCount ? 'drop-shadow(0 0 8px rgba(59,130,246,0.8))' : 'none');
+    .style('transition', 'opacity 0.2s ease, transform 0.2s ease');
 
   // Node Labels
-  node.append('text')
+  const labels = node.append('text')
     .text(d => d.id)
     .attr('dy', d => rScale(d.count) + 14)
     .attr('fill', '#f1f5f9')
     .style('font-size', '12px')
     .style('font-weight', '600')
-    .style('text-shadow', '0 2px 4px rgba(0,0,0,0.8)');
+    .style('text-shadow', '0 2px 4px rgba(0,0,0,0.8)')
+    .style('transition', 'opacity 0.2s ease');
 
   // Tooltip
   const tooltip = d3.select('body').append('div')
@@ -121,35 +117,81 @@ export function renderNetworkGraph(containerId, networkData, onNodeClick) {
     .style('pointer-events', 'none')
     .style('z-index', '9999');
 
+  // Single Click vs Double Click handling
+  let clickTimer = null;
+  let selectedNodeId = null;
+
   node.on('mouseover', (event, d) => {
-    tooltip.html(`<strong>${d.id}</strong> (출현 빈도: ${d.count}회)`)
+    tooltip.html(`<strong>${d.id}</strong> (출현 빈도: ${d.count}회)<br><span class="text-xs text-blue-300">💡 1회 클릭: 연관 노드 강조 | 2회 연속 클릭: 댓글 팝업 보기</span>`)
       .style('visibility', 'visible');
   })
   .on('mousemove', (event) => {
-    tooltip.style('top', (event.pageY - 35) + 'px')
-      .style('left', (event.pageX + 10) + 'px');
+    tooltip.style('top', (event.pageY - 40) + 'px')
+      .style('left', (event.pageX + 12) + 'px');
   })
   .on('mouseout', () => {
     tooltip.style('visibility', 'hidden');
   })
   .on('click', (event, d) => {
-    tooltip.style('visibility', 'hidden');
-    if (onNodeClick) onNodeClick(d.id);
+    event.stopPropagation();
+    
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+      // Double Click Event Triggered
+      tooltip.style('visibility', 'hidden');
+      if (onNodeDoubleClick) onNodeDoubleClick(d.id);
+    } else {
+      clickTimer = setTimeout(() => {
+        clickTimer = null;
+        // Single Click Event Triggered: Toggle Highlight Neighbor Nodes
+        if (selectedNodeId === d.id) {
+          resetHighlights();
+        } else {
+          highlightNeighbors(d);
+        }
+        if (onNodeSingleClick) onNodeSingleClick(d.id);
+      }, 250);
+    }
   });
 
-  link.on('mouseover', (event, d) => {
-    tooltip.html(`동시출현: <strong>${d.source.id} - ${d.target.id}</strong> (${d.value}회)`)
-      .style('visibility', 'visible');
-  })
-  .on('mousemove', (event) => {
-    tooltip.style('top', (event.pageY - 35) + 'px')
-      .style('left', (event.pageX + 10) + 'px');
-  })
-  .on('mouseout', () => {
-    tooltip.style('visibility', 'hidden');
-  });
+  function highlightNeighbors(targetNode) {
+    selectedNodeId = targetNode.id;
 
-  // Ticker for simulation position update
+    // Collect connected node IDs
+    const connectedNodeIds = new Set([targetNode.id]);
+    links.forEach(l => {
+      const sId = typeof l.source === 'object' ? l.source.id : l.source;
+      const tId = typeof l.target === 'object' ? l.target.id : l.target;
+      if (sId === targetNode.id) connectedNodeIds.add(tId);
+      if (tId === targetNode.id) connectedNodeIds.add(sId);
+    });
+
+    // Dim non-connected nodes
+    node.style('opacity', d => connectedNodeIds.has(d.id) ? 1 : 0.15);
+    circles.attr('stroke', d => d.id === targetNode.id ? '#fbbf24' : (connectedNodeIds.has(d.id) ? '#60a5fa' : '#1e293b'))
+      .attr('stroke-width', d => d.id === targetNode.id ? 4 : 2);
+
+    // Dim non-connected links
+    link.style('opacity', l => {
+      const sId = typeof l.source === 'object' ? l.source.id : l.source;
+      const tId = typeof l.target === 'object' ? l.target.id : l.target;
+      return (sId === targetNode.id || tId === targetNode.id) ? 1 : 0.08;
+    }).attr('stroke', l => {
+      const sId = typeof l.source === 'object' ? l.source.id : l.source;
+      const tId = typeof l.target === 'object' ? l.target.id : l.target;
+      return (sId === targetNode.id || tId === targetNode.id) ? '#60a5fa' : '#475569';
+    });
+  }
+
+  function resetHighlights() {
+    selectedNodeId = null;
+    node.style('opacity', 1);
+    circles.attr('stroke', d => d.count === maxCount ? '#60a5fa' : '#1e293b')
+      .attr('stroke-width', d => d.count === maxCount ? 3 : 1.5);
+    link.style('opacity', 0.6).attr('stroke', '#475569');
+  }
+
   simulation.on('tick', () => {
     link
       .attr('x1', d => d.source.x)
@@ -168,18 +210,15 @@ function drag(simulation, d3) {
     event.subject.fx = event.subject.x;
     event.subject.fy = event.subject.y;
   }
-
   function dragged(event) {
     event.subject.fx = event.x;
     event.subject.fy = event.y;
   }
-
   function dragended(event) {
     if (!event.active) simulation.alphaTarget(0);
     event.subject.fx = null;
     event.subject.fy = null;
   }
-
   return d3.drag()
     .on('start', dragstarted)
     .on('drag', dragged)

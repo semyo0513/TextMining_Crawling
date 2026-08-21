@@ -19,9 +19,11 @@ export const AppState = {
   sentimentData: null,
   activeTab: 'dashboard',
   filterWord: null,
-  stopwords: new Set(['것', '수', '등', '영상', '댓글', '진짜', '너무', '정말', '완전', '그냥']),
+  stopwords: new Set(['것', '수', '등', '영상', '댓글', '유튜브', '채널', '구독', '좋아요', '알림', '설정']),
   posFilter: ['NNG', 'NNP', 'VV', 'VA', 'MAG'],
   minLen: 2,
+  removeAuxVerbs: true,
+  removeConjunctions: true,
   sentimentDict: null,
   worker: null
 };
@@ -38,6 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBookmarkletSection();
   initApiCollector();
   initMiningControls();
+  initModalEvents();
   initExportAndSampleButtons();
 
   // Check URL Hash for Bookmarklet imported data
@@ -54,7 +57,7 @@ function initWorker() {
         updateProgressUI(progress);
       } else if (type === 'complete') {
         updateProgressUI(100);
-        setTimeout(() => hideProgressUI(), 400);
+        setTimeout(() => hideProgressUI(), 300);
 
         AppState.analyzedComments = analyzedData;
         runMiningPipeline();
@@ -62,7 +65,7 @@ function initWorker() {
     };
   } catch (err) {
     console.error('Worker initialization failed:', err);
-    showToast('Web Worker 로드 실패, Fallback 동기 분석으로 전환됩니다.', 'error');
+    showToast('Web Worker 로드 실패', 'error');
   }
 }
 
@@ -111,12 +114,16 @@ export function switchTab(tabId) {
     }
   });
 
-  // Trigger Visualizer Re-renders on tab switch if needed
-  if (tabId === 'wordcloud' && AppState.topWords.length) {
-    renderWordCloud('wordcloud-canvas', AppState.topWords, handleWordFilterClick);
+  // Re-render views on tab switch
+  if (tabId === 'morphology' && AppState.topWords.length) {
+    renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
+    renderMorphologyPreviewTable();
   } else if (tabId === 'network' && AppState.networkData.nodes.length) {
-    renderNetworkGraph('network-container', AppState.networkData, handleWordFilterClick);
+    renderNetworkGraph('network-container', AppState.networkData, null, openCommentModal);
   } else if (tabId === 'sentiment' && AppState.sentimentData) {
+    renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
+  } else if (tabId === 'dashboard' && AppState.topWords.length) {
+    renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
     renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
   }
 }
@@ -136,15 +143,13 @@ function initBookmarkletSection() {
     };
   }
 
-  if (codeTextarea) {
-    codeTextarea.value = code;
-  }
+  if (codeTextarea) codeTextarea.value = code;
 
   const copyBtn = document.getElementById('copy-bookmarklet-code');
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(code);
-      showToast('북마클릿 코드 복사 완료! 브라우저 북마크 URL란에 붙여넣으세요.', 'success');
+      showToast('북마클릿 코드 복사 완료!', 'success');
     });
   }
 }
@@ -156,8 +161,6 @@ function initApiCollector() {
   fetchBtn.addEventListener('click', async () => {
     const apiKey = document.getElementById('api-key-input')?.value?.trim();
     const videoUrl = document.getElementById('api-video-input')?.value?.trim();
-    const maxCount = parseInt(document.getElementById('api-max-count')?.value || '200', 10);
-    const order = document.getElementById('api-order-select')?.value || 'relevance';
 
     if (!apiKey) {
       showToast('YouTube Data API Key를 입력해주세요.', 'error');
@@ -178,8 +181,8 @@ function initApiCollector() {
       const comments = await fetchYoutubeComments({
         apiKey,
         videoId,
-        maxCount,
-        order,
+        maxCount: 200,
+        order: 'relevance',
         onProgress: (fetched, total) => {
           fetchBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> ${fetched} / ${total} 개 수집 중`;
         }
@@ -199,7 +202,7 @@ function initApiCollector() {
 }
 
 function initMiningControls() {
-  // Min word length slider
+  // Min word length
   const minLenInput = document.getElementById('min-len-input');
   const minLenVal = document.getElementById('min-len-val');
   if (minLenInput && minLenVal) {
@@ -210,7 +213,41 @@ function initMiningControls() {
     });
   }
 
-  // Stopwords input tag manager
+  // Toggles
+  const auxToggle1 = document.getElementById('remove-aux-verbs-toggle');
+  const auxToggle2 = document.getElementById('tab-remove-aux-verbs');
+  const conjToggle1 = document.getElementById('remove-conjunctions-toggle');
+  const conjToggle2 = document.getElementById('tab-remove-conjunctions');
+
+  const syncToggles = () => {
+    AppState.removeAuxVerbs = auxToggle1?.checked || auxToggle2?.checked || false;
+    AppState.removeConjunctions = conjToggle1?.checked || conjToggle2?.checked || false;
+
+    if (auxToggle1 && auxToggle2) {
+      auxToggle1.checked = AppState.removeAuxVerbs;
+      auxToggle2.checked = AppState.removeAuxVerbs;
+    }
+    if (conjToggle1 && conjToggle2) {
+      conjToggle1.checked = AppState.removeConjunctions;
+      conjToggle2.checked = AppState.removeConjunctions;
+    }
+    if (AppState.comments.length) triggerTextMining();
+  };
+
+  if (auxToggle1) auxToggle1.addEventListener('change', syncToggles);
+  if (auxToggle2) auxToggle2.addEventListener('change', syncToggles);
+  if (conjToggle1) conjToggle1.addEventListener('change', syncToggles);
+  if (conjToggle2) conjToggle2.addEventListener('change', syncToggles);
+
+  const applyBtn = document.getElementById('apply-morph-settings-btn');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      syncToggles();
+      showToast('형태소 정제 필터가 재적용되었습니다.', 'success');
+    });
+  }
+
+  // Stopwords Tag Add
   const stopwordInput = document.getElementById('stopword-add-input');
   const stopwordAddBtn = document.getElementById('stopword-add-btn');
   if (stopwordAddBtn && stopwordInput) {
@@ -239,7 +276,7 @@ function renderStopwordTags() {
   container.innerHTML = '';
   AppState.stopwords.forEach(word => {
     const tag = document.createElement('span');
-    tag.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-700 text-slate-200 border border-slate-600';
+    tag.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-200 border border-slate-600';
     tag.innerHTML = `${escapeHTML(word)} <button class="hover:text-red-400 focus:outline-none" data-word="${escapeHTML(word)}">&times;</button>`;
     
     tag.querySelector('button').addEventListener('click', (e) => {
@@ -254,7 +291,6 @@ function renderStopwordTags() {
 }
 
 function initExportAndSampleButtons() {
-  // Load Sample Comments
   const sampleBtn = document.getElementById('load-sample-btn');
   if (sampleBtn) {
     sampleBtn.addEventListener('click', () => {
@@ -264,7 +300,6 @@ function initExportAndSampleButtons() {
     });
   }
 
-  // Clear Filter
   const clearFilterBtn = document.getElementById('clear-filter-btn');
   if (clearFilterBtn) {
     clearFilterBtn.addEventListener('click', () => {
@@ -272,7 +307,6 @@ function initExportAndSampleButtons() {
     });
   }
 
-  // CSV Export
   const csvBtn = document.getElementById('export-csv-btn');
   if (csvBtn) {
     csvBtn.addEventListener('click', () => {
@@ -280,7 +314,6 @@ function initExportAndSampleButtons() {
     });
   }
 
-  // JSON Export
   const jsonBtn = document.getElementById('export-json-btn');
   if (jsonBtn) {
     jsonBtn.addEventListener('click', () => {
@@ -295,12 +328,14 @@ export function triggerTextMining() {
     return;
   }
 
-  showProgressUI('형태소 분석 및 텍스트마이닝 실행 중...');
+  showProgressUI('형태소 분석 및 텍스트마이닝 정제 중...');
 
   const options = {
     posFilter: AppState.posFilter,
     minLen: AppState.minLen,
-    stopwords: Array.from(AppState.stopwords)
+    stopwords: Array.from(AppState.stopwords),
+    removeAuxVerbs: AppState.removeAuxVerbs,
+    removeConjunctions: AppState.removeConjunctions
   };
 
   if (AppState.worker) {
@@ -309,40 +344,34 @@ export function triggerTextMining() {
       comments: AppState.comments,
       options
     });
-  } else {
-    // Fallback sync execution if worker not available
-    setTimeout(() => {
-      // Basic extraction
-      hideProgressUI();
-    }, 300);
   }
 }
 
 function runMiningPipeline() {
-  // 1. Calculate Top Word Frequencies
+  // 1. Top Word Frequencies
   AppState.topWords = calculateWordFrequencies(AppState.analyzedComments, 100);
 
-  // 2. Calculate Co-occurrence Matrix for Network
+  // 2. Co-occurrence Matrix
   AppState.networkData = calculateCoOccurrenceMatrix(AppState.analyzedComments, AppState.topWords, 35, 1);
 
-  // 3. Evaluate Sentiment
+  // 3. Sentiment Analysis (5-level Polarity)
   AppState.sentimentData = evaluateCommentsSentiment(AppState.analyzedComments, AppState.sentimentDict);
 
-  // 4. Update Summary Statistics UI Cards
+  // 4. Update Summary Cards
   updateDashboardSummary();
 
-  // 5. Render Current Tab & Visualizations
+  // 5. Render Current Visualizations
   renderCommentsTable();
+  renderMorphologyPreviewTable();
 
-  if (AppState.activeTab === 'wordcloud') {
-    renderWordCloud('wordcloud-canvas', AppState.topWords, handleWordFilterClick);
+  if (AppState.activeTab === 'morphology') {
+    renderWordCloud('morph-tab-wordcloud-canvas', AppState.topWords, openCommentModal);
   } else if (AppState.activeTab === 'network') {
-    renderNetworkGraph('network-container', AppState.networkData, handleWordFilterClick);
+    renderNetworkGraph('network-container', AppState.networkData, null, openCommentModal);
   } else if (AppState.activeTab === 'sentiment') {
     renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
   } else if (AppState.activeTab === 'dashboard') {
-    // Render mini previews on dashboard
-    renderWordCloud('wordcloud-canvas', AppState.topWords, handleWordFilterClick);
+    renderWordCloud('wordcloud-canvas', AppState.topWords, openCommentModal);
     renderSentimentCharts('sentiment-donut-chart', 'sentiment-bar-chart', AppState.sentimentData);
   }
 }
@@ -362,7 +391,7 @@ function updateDashboardSummary() {
     if (negRatioEl) negRatioEl.innerText = `${negativeRatio}%`;
   }
 
-  // Best/Worst Sentiment Cards
+  // Best & Worst Cards
   const bestCard = document.getElementById('best-positive-card');
   const worstCard = document.getElementById('worst-negative-card');
 
@@ -393,23 +422,115 @@ function updateDashboardSummary() {
   }
 }
 
+function renderMorphologyPreviewTable() {
+  const tbody = document.getElementById('morph-top-words-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  const top20 = AppState.topWords.slice(0, 20);
+
+  if (top20.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-500">분석된 데이터가 없습니다.</td></tr>`;
+    return;
+  }
+
+  top20.forEach((item, index) => {
+    let posBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">명사</span>`;
+    if (item.word.endsWith('다')) {
+      posBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">용언(+다)</span>`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-800/40 transition-colors';
+    tr.innerHTML = `
+      <td class="py-2 px-2 font-mono text-slate-400">${index + 1}</td>
+      <td class="py-2 px-2 font-bold text-slate-200">${escapeHTML(item.word)}</td>
+      <td class="py-2 px-2">${posBadge}</td>
+      <td class="py-2 px-2 text-right font-mono font-bold text-blue-400">${item.count}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
 function handleWordFilterClick(word) {
   AppState.filterWord = word;
-  
   const badge = document.getElementById('active-filter-badge');
   const filterWordSpan = document.getElementById('filter-word-display');
   
   if (word) {
     if (badge) badge.classList.remove('hidden');
     if (filterWordSpan) filterWordSpan.innerText = `"${word}"`;
-    showToast(`"${word}" 단어가 포함된 댓글로 필터링되었습니다.`, 'info');
   } else {
     if (badge) badge.classList.add('hidden');
-    showToast('단어 필터링이 해제되었습니다.', 'info');
   }
 
   renderCommentsTable();
-  switchTab('table');
+}
+
+/**
+ * Open Comment Modal Popup for Double-Clicked Network Node or WordCloud Click
+ */
+export function openCommentModal(word) {
+  const modal = document.getElementById('comment-modal');
+  const titleEl = document.getElementById('modal-word-title');
+  const countEl = document.getElementById('modal-comment-count');
+  const tbody = document.getElementById('modal-comments-tbody');
+
+  if (!modal || !tbody) return;
+
+  const filtered = filterCommentsByWord(AppState.analyzedComments, word);
+
+  if (titleEl) titleEl.innerText = `"${word}"`;
+  if (countEl) countEl.innerText = filtered.length;
+
+  tbody.innerHTML = '';
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">관련 댓글이 없습니다.</td></tr>`;
+  } else {
+    filtered.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-800/40 transition-colors';
+
+      let highlightedText = escapeHTML(item.text);
+      if (word) {
+        const regex = new RegExp(`(${escapeHTML(word)})`, 'gi');
+        highlightedText = highlightedText.replace(regex, `<mark class="bg-blue-500/40 text-blue-200 px-1 rounded">$1</mark>`);
+      }
+
+      let badge = getSentimentBadgeMarkup(item);
+
+      tr.innerHTML = `
+        <td class="py-2.5 px-3 font-mono text-slate-400">${index + 1}</td>
+        <td class="py-2.5 px-3 font-semibold text-slate-300 max-w-[120px] truncate">${escapeHTML(item.author)}</td>
+        <td class="py-2.5 px-3 text-slate-200 leading-relaxed">${highlightedText}</td>
+        <td class="py-2.5 px-3 font-semibold text-amber-400"><i class="far fa-thumbs-up mr-1"></i>${item.likes || 0}</td>
+        <td class="py-2.5 px-3 text-center">${badge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function initModalEvents() {
+  const modal = document.getElementById('comment-modal');
+  const closeBtn1 = document.getElementById('close-comment-modal-btn');
+  const closeBtn2 = document.getElementById('modal-close-bottom-btn');
+
+  const closeModal = () => {
+    if (modal) modal.classList.add('hidden');
+  };
+
+  if (closeBtn1) closeBtn1.addEventListener('click', closeModal);
+  if (closeBtn2) closeBtn2.addEventListener('click', closeModal);
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  }
 }
 
 function renderCommentsTable() {
@@ -442,12 +563,7 @@ function renderCommentsTable() {
       highlightedText = highlightedText.replace(regex, `<mark class="bg-blue-500/40 text-blue-200 px-1 rounded">$1</mark>`);
     }
 
-    let sentimentBadge = `<span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">중립</span>`;
-    if (item.sentimentScore > 0) {
-      sentimentBadge = `<span class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">+${item.sentimentScore} 긍정</span>`;
-    } else if (item.sentimentScore < 0) {
-      sentimentBadge = `<span class="text-xs px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-800">${item.sentimentScore} 부정</span>`;
-    }
+    let sentimentBadge = getSentimentBadgeMarkup(item);
 
     tr.innerHTML = `
       <td class="py-3 px-4 text-xs font-mono text-slate-400">${item.id || index + 1}</td>
@@ -458,6 +574,20 @@ function renderCommentsTable() {
     `;
     tbody.appendChild(tr);
   });
+}
+
+function getSentimentBadgeMarkup(item) {
+  const score = item.sentimentScore || 0;
+  if (score >= 3) {
+    return `<span class="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 font-bold">+${score} 강한 긍정</span>`;
+  } else if (score >= 1) {
+    return `<span class="text-xs px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800">+${score} 긍정</span>`;
+  } else if (score <= -3) {
+    return `<span class="text-xs px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-700 font-bold">${score} 강한 부정</span>`;
+  } else if (score <= -1) {
+    return `<span class="text-xs px-2 py-0.5 rounded bg-rose-950/60 text-rose-400 border border-rose-800">${score} 부정</span>`;
+  }
+  return `<span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">0 중립</span>`;
 }
 
 function showProgressUI(msg) {

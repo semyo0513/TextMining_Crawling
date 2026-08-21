@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouTube 댓글 영역 추출 & 텍스트마이닝 대시보드</title>
+  <title>YouTube 댓글 영역 추출 &amp; 텍스트마이닝 대시보드</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -78,7 +78,7 @@
       <!-- Mining Filter Options Card -->
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl space-y-5">
         <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <i class="fas fa-sliders-h text-blue-400"></i> 텍스트마이닝 설정
+          <i class="fas fa-sliders-h text-blue-400"></i> 텍스트마이닝 Quick 옵션
         </h3>
 
         <!-- Min Word Length Slider -->
@@ -90,19 +90,16 @@
           <input type="range" id="min-len-input" min="1" max="5" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
         </div>
 
-        <!-- POS Morphological Selection (Checkboxes) -->
-        <div>
-          <label class="text-xs font-semibold text-slate-300 block mb-2">포함할 품사 (Kiwi WASM)</label>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
-              <input type="checkbox" checked disabled class="accent-blue-500 rounded">
-              <span class="text-slate-200">명사 (NNG/NNP)</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
-              <input type="checkbox" checked disabled class="accent-blue-500 rounded">
-              <span class="text-slate-200">용언 원형 (+다)</span>
-            </label>
-          </div>
+        <!-- Auxiliary Verbs & Conjunctions Toggles -->
+        <div class="space-y-2 text-xs">
+          <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/80 cursor-pointer hover:bg-slate-900">
+            <span class="text-slate-200 font-medium">보조용언 제거 (하다/보다/있다...)</span>
+            <input type="checkbox" id="remove-aux-verbs-toggle" checked class="accent-blue-500 w-4 h-4 rounded">
+          </label>
+          <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/80 cursor-pointer hover:bg-slate-900">
+            <span class="text-slate-200 font-medium">접속어 제거 (근데/원래/그렇게...)</span>
+            <input type="checkbox" id="remove-conjunctions-toggle" checked class="accent-blue-500 w-4 h-4 rounded">
+          </label>
         </div>
 
         <!-- Custom Stopwords Tag Manager -->
@@ -112,7 +109,6 @@
             <input type="text" id="stopword-add-input" placeholder="제외할 단어 입력..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500">
             <button id="stopword-add-btn" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors">추가</button>
           </div>
-          <!-- Stopword Tags Container -->
           <div id="stopword-tags-container" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
         </div>
       </div>
@@ -120,20 +116,12 @@
       <!-- Currently Active Filter Word Display Badge -->
       <div id="active-filter-badge" class="hidden bg-blue-950/60 border border-blue-800 rounded-2xl p-4 flex items-center justify-between">
         <div>
-          <span class="text-xs text-blue-400 font-semibold uppercase block">선택 단어 교차 필터링</span>
+          <span class="text-xs text-blue-400 font-semibold uppercase block">선택 단어 필터링</span>
           <span id="filter-word-display" class="text-base font-bold text-white"></span>
         </div>
         <button id="clear-filter-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2.5 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1">
           <i class="fas fa-times text-red-400"></i> 해제
         </button>
-      </div>
-
-      <!-- Quick Info / GitHub Pages Guide Card -->
-      <div class="bg-slate-800/40 border border-slate-700/40 rounded-2xl p-4 text-xs text-slate-400 space-y-2">
-        <div class="font-semibold text-slate-300 flex items-center gap-2">
-          <i class="fas fa-shield-alt text-emerald-400"></i> 100% Serverless &amp; Privacy
-        </div>
-        <p class="leading-relaxed">모든 댓글 수집 데이터 및 형태소 분석은 사용자의 브라우저 메모리 내에서 안전하게 처리되며 외부 서버에 저장되지 않습니다.</p>
       </div>
     </aside>
 
@@ -148,14 +136,14 @@
         <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="collector">
           <i class="fas fa-cut text-blue-400"></i> 댓글 수집기 (북마클릿 / API)
         </button>
-        <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="wordcloud">
-          <i class="fas fa-cloud text-purple-400"></i> 워드클라우드
+        <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="morphology">
+          <i class="fas fa-cogs text-purple-400"></i> ⚙️ 형태소 정제 설정
         </button>
         <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="network">
           <i class="fas fa-project-diagram text-teal-400"></i> 연관어 네트워크
         </button>
         <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="sentiment">
-          <i class="fas fa-smile text-emerald-400"></i> 감정 분석
+          <i class="fas fa-smile text-emerald-400"></i> 세분화 감정 분석
         </button>
         <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="table">
           <i class="fas fa-table text-amber-400"></i> 댓글 목록 (<span id="filtered-comments-count">0</span>)
@@ -164,7 +152,6 @@
 
       <!-- Tab 1: Comprehensive Dashboard -->
       <section id="tab-dashboard" class="tab-panel space-y-6">
-        <!-- Summary KPI Counter Cards Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
             <div class="text-xs text-slate-400 font-semibold mb-1">총 수집 댓글 수</div>
@@ -175,35 +162,31 @@
             <div class="text-2xl font-black text-blue-400 font-mono" id="summary-unique-words">0</div>
           </div>
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
-            <div class="text-xs text-slate-400 font-semibold mb-1">긍정 댓글 비율</div>
+            <div class="text-xs text-slate-400 font-semibold mb-1">긍정 비중 (강한긍정 포함)</div>
             <div class="text-2xl font-black text-emerald-400 font-mono" id="summary-positive-ratio">0%</div>
           </div>
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
-            <div class="text-xs text-slate-400 font-semibold mb-1">부정 댓글 비율</div>
+            <div class="text-xs text-slate-400 font-semibold mb-1">부정 비중 (강한부정 포함)</div>
             <div class="text-2xl font-black text-rose-400 font-mono" id="summary-negative-ratio">0%</div>
           </div>
         </div>
 
-        <!-- Dashboard Grid: WordCloud Preview & Sentiment Donut Preview -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- WordCloud Preview -->
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col">
             <div class="flex justify-between items-center mb-3">
               <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
                 <i class="fas fa-cloud text-purple-400"></i> 단어 빈도 워드클라우드
               </h3>
-              <span class="text-xs text-slate-400">단어 클릭 시 필터링</span>
             </div>
             <div class="flex-1 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center min-h-[300px]">
               <canvas id="wordcloud-canvas"></canvas>
             </div>
           </div>
 
-          <!-- Sentiment Donut Chart Preview -->
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col">
             <div class="flex justify-between items-center mb-3">
               <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <i class="fas fa-chart-pie text-emerald-400"></i> 감정 극성 (KNU 사전)
+                <i class="fas fa-chart-pie text-emerald-400"></i> 세분화 감정 극성 (5단계)
               </h3>
             </div>
             <div class="flex-1 bg-slate-900 rounded-xl p-4 relative min-h-[300px] flex items-center justify-center">
@@ -212,7 +195,6 @@
           </div>
         </div>
 
-        <!-- Best Positive & Worst Negative Highlight Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div id="best-positive-card" class="bg-emerald-950/30 border border-emerald-800/50 rounded-2xl p-4 text-xs text-slate-300">
             <div class="text-slate-400 italic">댓글을 분석하면 대표 긍정 코멘트가 추출됩니다.</div>
@@ -223,20 +205,17 @@
         </div>
       </section>
 
-      <!-- Tab 2: Collector Mode A (Bookmarklet) & Mode B (YouTube API) -->
+      <!-- Tab 2: Collector -->
       <section id="tab-collector" class="tab-panel hidden space-y-6">
-        
-        <!-- Mode A Card: Bookmarklet Inspector -->
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
           <div class="flex items-center justify-between border-b border-slate-700 pb-4">
             <div>
               <span class="text-xs font-bold text-blue-400 bg-blue-950 px-2.5 py-1 rounded-full border border-blue-800">모드 A (추천)</span>
-              <h3 class="text-base font-bold text-white mt-2">✂️ 원클릭 북마클릿 댓글 영역 추출기 (API 키 0원, 무설치)</h3>
+              <h3 class="text-base font-bold text-white mt-2">✂️ 원클릭 북마클릿 댓글 영역 추출기</h3>
             </div>
-            <span class="text-xs text-emerald-400 font-semibold"><i class="fas fa-check-circle mr-1"></i> 크롬/웨일/엣지 완벽 호환</span>
+            <span class="text-xs text-emerald-400 font-semibold"><i class="fas fa-check-circle mr-1"></i> 상단 일괄 추출 툴바 탑재</span>
           </div>
 
-          <!-- Bookmarklet Installation Drag Box -->
           <div class="bg-slate-900/80 border border-dashed border-blue-500/50 rounded-xl p-6 text-center space-y-3">
             <p class="text-xs text-slate-300">아래 파란색 버튼을 마우스로 클릭한 채, <strong>브라우저 북마크바(Ctrl+Shift+B)</strong>로 드래그 앤 드롭하세요.</p>
             <div>
@@ -244,10 +223,8 @@
                 <i class="fas fa-cut mr-2"></i> ✂️ 댓글 영역 추출기
               </a>
             </div>
-            <p class="text-xs text-slate-400 font-mono">드래그가 안 될 경우 아래 코드를 복사하여 북마크 URL 주소란에 등록하세요.</p>
           </div>
 
-          <!-- Copyable Code Snippet Textarea -->
           <div class="space-y-2">
             <div class="flex justify-between items-center">
               <label class="text-xs font-semibold text-slate-300">북마클릿 JavaScript 원본 코드</label>
@@ -257,32 +234,12 @@
             </div>
             <textarea id="bookmarklet-code-textarea" readonly class="w-full h-24 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-blue-300 focus:outline-none resize-none"></textarea>
           </div>
-
-          <!-- Bookmarklet Usage Instructions Grid -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700/60 space-y-1">
-              <div class="text-blue-400 font-bold text-xs">STEP 1</div>
-              <div class="text-sm font-semibold text-slate-200">YouTube 시청 탭 이동</div>
-              <p class="text-xs text-slate-400">분석하고자 하는 YouTube 영상 시청 페이지로 이동합니다.</p>
-            </div>
-            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700/60 space-y-1">
-              <div class="text-blue-400 font-bold text-xs">STEP 2</div>
-              <div class="text-sm font-semibold text-slate-200">북마클릿 클릭</div>
-              <p class="text-xs text-slate-400">북마크바의 [✂️ 댓글 영역 추출기]를 클릭하면 파란색 하이라이터 박스가 활성화됩니다.</p>
-            </div>
-            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700/60 space-y-1">
-              <div class="text-blue-400 font-bold text-xs">STEP 3</div>
-              <div class="text-sm font-semibold text-slate-200">댓글 클릭 &amp; 자동 전송</div>
-              <p class="text-xs text-slate-400">댓글 영역을 클릭하면 로딩된 모든 댓글이 수집되어 이 웹앱으로 전송됩니다.</p>
-            </div>
-          </div>
         </div>
 
-        <!-- Mode B Card: YouTube Data API v3 -->
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
           <div class="border-b border-slate-700 pb-4">
             <span class="text-xs font-bold text-purple-400 bg-purple-950 px-2.5 py-1 rounded-full border border-purple-800">모드 B</span>
-            <h3 class="text-base font-bold text-white mt-2">🔑 YouTube Data API v3 수집기 (대량 심층 수집 &amp; 대댓글 수집)</h3>
+            <h3 class="text-base font-bold text-white mt-2">🔑 YouTube Data API v3 수집기</h3>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -296,53 +253,95 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label for="api-max-count" class="text-xs font-semibold text-slate-300 block mb-1">수집 최대 개수</label>
-              <select id="api-max-count" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-purple-500">
-                <option value="100">100개 댓글</option>
-                <option value="200" selected>200개 댓글</option>
-                <option value="500">500개 댓글 (대량 수집)</option>
-              </select>
-            </div>
-            <div>
-              <label for="api-order-select" class="text-xs font-semibold text-slate-300 block mb-1">댓글 정렬 기준</label>
-              <select id="api-order-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-purple-500">
-                <option value="relevance">인기순 (Relevance)</option>
-                <option value="time">최신순 (Time)</option>
-              </select>
-            </div>
-          </div>
-
           <button id="api-fetch-btn" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-purple-600/20 text-xs flex items-center justify-center gap-2">
             <i class="fas fa-download"></i> YouTube API 댓글 수집 시작
           </button>
         </div>
       </section>
 
-      <!-- Tab 3: WordCloud Panel -->
-      <section id="tab-wordcloud" class="tab-panel hidden space-y-4">
-        <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <i class="fas fa-cloud text-purple-400"></i> 단어 빈도 워드클라우드 (WordCloud2.js)
-            </h3>
-            <span class="text-xs text-slate-400"><i class="fas fa-mouse-pointer mr-1"></i> 단어 클릭 시 원본 댓글 즉시 필터링</span>
+      <!-- Tab 3: Morphological Cleaning Settings -->
+      <section id="tab-morphology" class="tab-panel hidden space-y-6">
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
+          <div class="border-b border-slate-700 pb-3 flex justify-between items-center">
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fas fa-cogs text-purple-400"></i> 형태소 정제 세부 설정 &amp; 정제 결과 미리보기
+              </h3>
+              <p class="text-xs text-slate-400">용언 원형화(+다), 보조용언 제거 및 불용어를 정밀하게 필터링합니다.</p>
+            </div>
+            <button id="apply-morph-settings-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-md">
+              <i class="fas fa-sync mr-1"></i> 정제 필터 즉시 적용
+            </button>
           </div>
-          <div class="bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center p-2">
-            <canvas id="wordcloud-canvas" class="w-full h-[480px]"></canvas>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left Controls -->
+            <div class="space-y-4">
+              <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 space-y-3">
+                <div class="text-xs font-bold text-blue-400 uppercase">불용어 &amp; 보조용언 필터 필터링 규칙</div>
+                
+                <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer">
+                  <div>
+                    <div class="text-xs font-bold text-slate-200">보조용언 (Auxiliary Verbs) 제거</div>
+                    <div class="text-[11px] text-slate-400">하다, 보다, 되다, 있다, 없다, 오다, 가다, 주다...</div>
+                  </div>
+                  <input type="checkbox" id="tab-remove-aux-verbs" checked class="accent-blue-500 w-4 h-4 rounded">
+                </label>
+
+                <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer">
+                  <div>
+                    <div class="text-xs font-bold text-slate-200">접속어 &amp; 감탄사 (Conjunctions) 제거</div>
+                    <div class="text-[11px] text-slate-400">근데, 원래, 그렇게, 저렇게, 그리고, 하지만, 그래도...</div>
+                  </div>
+                  <input type="checkbox" id="tab-remove-conjunctions" checked class="accent-blue-500 w-4 h-4 rounded">
+                </label>
+              </div>
+
+              <!-- WordCloud Visualizer Card inside Morphology Tab -->
+              <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700">
+                <div class="text-xs font-bold text-purple-400 mb-2">정제 단어 워드클라우드 미리보기</div>
+                <div class="bg-slate-950 rounded-lg overflow-hidden h-[240px] flex items-center justify-center">
+                  <canvas id="morph-tab-wordcloud-canvas" class="w-full h-full"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Preview Table -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 flex flex-col">
+              <div class="text-xs font-bold text-emerald-400 mb-3 flex items-center justify-between">
+                <span><i class="fas fa-list-ol mr-1"></i> 상위 정제 단어 TOP 20</span>
+                <span class="text-[11px] text-slate-400">정제 후 추출된 표준 단어 목록</span>
+              </div>
+              <div class="flex-1 overflow-y-auto max-h-[420px] pr-1">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="border-b border-slate-800 text-slate-400">
+                      <th class="py-2 px-2 w-10">순위</th>
+                      <th class="py-2 px-2">원형화 단어 (Stem)</th>
+                      <th class="py-2 px-2 w-20">품사</th>
+                      <th class="py-2 px-2 w-16 text-right">출현 빈도</th>
+                    </tr>
+                  </thead>
+                  <tbody id="morph-top-words-tbody" class="divide-y divide-slate-800">
+                    <tr><td colspan="4" class="py-6 text-center text-slate-500">분석된 데이터가 없습니다.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- Tab 4: Network Graph Panel -->
+      <!-- Tab 4: Network Panel -->
       <section id="tab-network" class="tab-panel hidden space-y-4">
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl">
           <div class="flex justify-between items-center mb-3">
             <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
               <i class="fas fa-project-diagram text-teal-400"></i> 동시출현 연관어 네트워크 (D3.js v7 Force)
             </h3>
-            <span class="text-xs text-slate-400"><i class="fas fa-hand-rock mr-1"></i> 노드 드래그 &amp; 마우스 휠 줌/팬(Zoom &amp; Pan) 지원</span>
+            <span class="text-xs text-slate-300">
+              <i class="fas fa-mouse-pointer text-blue-400 mr-1"></i> <strong>1회 클릭</strong>: 연관 노드 강조 | <strong>2회 연속 클릭</strong>: 관련 댓글 팝업
+            </span>
           </div>
           <div id="network-container" class="bg-slate-900 rounded-xl overflow-hidden relative min-h-[550px]"></div>
         </div>
@@ -353,7 +352,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl">
             <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-              <i class="fas fa-chart-pie text-emerald-400"></i> 긍정 / 중립 / 부정 비중 (Donut Chart)
+              <i class="fas fa-chart-pie text-emerald-400"></i> 세분화 감정 비중 (5단계 Donut Chart)
             </h3>
             <div class="h-[320px] flex items-center justify-center">
               <canvas id="sentiment-donut-chart"></canvas>
@@ -361,7 +360,7 @@
           </div>
           <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl">
             <h3 class="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-              <i class="fas fa-chart-bar text-blue-400"></i> 감정 점수 분포 (Histogram)
+              <i class="fas fa-chart-bar text-blue-400"></i> 감정 극성 점수 분포 (Histogram)
             </h3>
             <div class="h-[320px] flex items-center justify-center">
               <canvas id="sentiment-bar-chart"></canvas>
@@ -386,7 +385,7 @@
                   <th class="py-3 px-4 w-36">작성자</th>
                   <th class="py-3 px-4">댓글 내용</th>
                   <th class="py-3 px-4 w-24">좋아요</th>
-                  <th class="py-3 px-4 w-28 text-center">감정 극성</th>
+                  <th class="py-3 px-4 w-32 text-center">감정 극성</th>
                 </tr>
               </thead>
               <tbody id="comments-tbody" class="divide-y divide-slate-800">
@@ -402,13 +401,50 @@
     </div>
   </main>
 
+  <!-- Comment Popup Modal Overlay (Double-Click Node Popup) -->
+  <div id="comment-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="bg-slate-950 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+        <div>
+          <span class="text-xs text-blue-400 font-bold uppercase block">관련 댓글 팝업 조회</span>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <span id="modal-word-title" class="text-blue-400"></span> 관련 댓글 (<span id="modal-comment-count" class="font-mono text-emerald-400">0</span>개)
+          </h3>
+        </div>
+        <button id="close-comment-modal-btn" class="text-slate-400 hover:text-white text-xl font-bold p-1 focus:outline-none">✕</button>
+      </div>
+
+      <!-- Modal Body (Comments Table) -->
+      <div class="p-6 overflow-y-auto flex-1">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400 font-semibold uppercase bg-slate-950/40">
+              <th class="py-2.5 px-3 w-12">#</th>
+              <th class="py-2.5 px-3 w-32">작성자</th>
+              <th class="py-2.5 px-3">댓글 내용</th>
+              <th class="py-2.5 px-3 w-20">좋아요</th>
+              <th class="py-2.5 px-3 w-28 text-center">감정 극성</th>
+            </tr>
+          </thead>
+          <tbody id="modal-comments-tbody" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-slate-950 px-6 py-3 border-t border-slate-800 flex justify-end">
+        <button id="modal-close-bottom-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700">닫기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Progress Loading Modal Overlay -->
   <div id="progress-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full mx-4 space-y-4 shadow-2xl text-center">
       <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
       <div>
         <h4 id="progress-label" class="text-sm font-bold text-slate-100">형태소 분석 처리 중...</h4>
-        <p class="text-xs text-slate-400 mt-1">Kiwi WASM 웹워커에서 단어 원형 복원 및 가공을 진행합니다.</p>
+        <p class="text-xs text-slate-400 mt-1">용언 원형 복원(+다) 및 불용어 제거 필터링 중...</p>
       </div>
       <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
         <div id="progress-bar-fill" class="bg-blue-500 h-2 w-0 transition-all duration-200"></div>

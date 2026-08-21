@@ -1,5 +1,5 @@
 /**
- * KNU Sentiment Dictionary & Chart.js Visualization Engine
+ * Fine-Grained Sentiment Analysis & Polarity Classification Engine
  */
 
 let sentimentDictCache = null;
@@ -14,72 +14,128 @@ export async function loadSentimentDict() {
       return sentimentDictCache;
     }
   } catch (e) {
-    console.warn('감성 사전 로드 실패, 기본 사전 사용:', e);
+    console.warn('감성 사전 파일 로드 중 오탈자/네트워크 오류, 기본 사전 사용:', e);
   }
 
-  // Basic fallback dictionary
+  // Fallback
   sentimentDictCache = {
-    "최고": 2, "좋아요": 2, "감동": 2, "대박": 2, "꿀잼": 2, "유익": 2, "감사": 2, "추천": 2, "명작": 2, "완벽": 2,
-    "최악": -2, "쓰레기": -2, "노잼": -2, "낭비": -2, "실망": -2, "극혐": -2, "빡침": -2, "어이없다": -2, "돈아깝다": -2
+    "대박": 3, "최고": 3, "명작": 3, "존잼": 3, "사이다": 3, "갓": 3, "레전드": 3, "지렸다": 3,
+    "좋다": 2, "좋아": 2, "좋아요": 2, "꿀잼": 2, "유익": 2, "감사": 2, "추천": 2, "재밌다": 2, "만족": 2,
+    "괜찮다": 1, "인정": 1, "공감": 1, "유용": 1, "도움": 1, "귀엽다": 1,
+    "아쉽다": -1, "부족": -1, "지루함": -1, "복잡": -1, "어렵다": -1, "느리게": -1,
+    "별로": -2, "짜증": -2, "답답": -2, "불편": -2, "실망": -2, "노잼": -2, "비추": -2, "돈아깝다": -2, "망했다": -2,
+    "최악": -3, "쓰레기": -3, "극혐": -3, "빡침": -3, "욕나옴": -3, "주작": -3, "사기": -3
   };
   return sentimentDictCache;
 }
 
+// Negation words that flip polarity
+const NEGATION_WORDS = new Set(['안', '못', '전혀', '별로', '결코', '않', '없']);
+
 export function evaluateCommentsSentiment(analyzedComments, dictionary) {
-  let positiveCount = 0;
+  let strongPosCount = 0;
+  let posCount = 0;
   let neutralCount = 0;
-  let negativeCount = 0;
+  let negCount = 0;
+  let strongNegCount = 0;
 
   let bestPositive = null;
   let worstNegative = null;
 
-  const scoreDist = { "-2이하": 0, "-1": 0, "0": 0, "+1": 0, "+2이상": 0 };
+  const scoreDist = {
+    "STRONG_POS": 0, // >= +3
+    "POS": 0,        // +1, +2
+    "NEUTRAL": 0,    // 0
+    "NEG": 0,        // -1, -2
+    "STRONG_NEG": 0  // <= -3
+  };
 
   const evaluatedList = analyzedComments.map(item => {
     let score = 0;
     const matchedWords = [];
+    const tokens = item.tokens || [];
+    const rawText = item.text || '';
 
-    // Evaluate tokens
-    item.tokens.forEach(token => {
-      const word = token.form;
-      if (dictionary[word] !== undefined) {
-        score += dictionary[word];
-        matchedWords.push({ word, score: dictionary[word] });
+    // 1. Token-level matching & Negation checking
+    for (let i = 0; i < tokens.length; i++) {
+      const word = tokens[i].form;
+      let wordScore = dictionary[word];
+
+      if (wordScore !== undefined) {
+        // Check previous token or raw preceding word for negation (e.g., "안 좋다", "못 만든")
+        let isNegated = false;
+        if (i > 0 && NEGATION_WORDS.has(tokens[i - 1].form)) {
+          isNegated = true;
+        } else {
+          // Substring negation check in raw text
+          const wordIdx = rawText.indexOf(word);
+          if (wordIdx > 0) {
+            const prefix = rawText.substring(Math.max(0, wordIdx - 6), wordIdx);
+            if (/(?:안|못|전혀|않|없)/.test(prefix)) {
+              isNegated = true;
+            }
+          }
+        }
+
+        if (isNegated) {
+          wordScore = -wordScore; // Flip polarity
+        }
+
+        score += wordScore;
+        matchedWords.push({ word, score: wordScore, negated: isNegated });
+      }
+    }
+
+    // 2. Substring phrase matching for idioms & un-tokenized words
+    Object.keys(dictionary).forEach(dictWord => {
+      if (!matchedWords.some(m => m.word === dictWord) && rawText.includes(dictWord)) {
+        let dictScore = dictionary[dictWord];
+        const idx = rawText.indexOf(dictWord);
+        const prefix = rawText.substring(Math.max(0, idx - 6), idx);
+        if (/(?:안|못|전혀|않|없)/.test(prefix)) {
+          dictScore = -dictScore;
+        }
+        score += dictScore;
+        matchedWords.push({ word: dictWord, score: dictScore });
       }
     });
 
-    // Fallback substring scan for un-tokenized words
-    if (matchedWords.length === 0) {
-      Object.keys(dictionary).forEach(dictWord => {
-        if (item.text.includes(dictWord)) {
-          score += dictionary[dictWord];
-          matchedWords.push({ word: dictWord, score: dictionary[dictWord] });
-        }
-      });
-    }
-
+    // 3. Polarity Categorization into 5 distinct categories
     let category = 'NEUTRAL';
-    if (score > 0) {
-      category = 'POSITIVE';
-      positiveCount++;
-    } else if (score < 0) {
-      category = 'NEGATIVE';
-      negativeCount++;
-    } else {
-      neutralCount++;
-    }
+    let categoryLabel = '중립 (0)';
 
-    // Score distribution binning
-    if (score <= -2) scoreDist["-2이하"]++;
-    else if (score === -1) scoreDist["-1"]++;
-    else if (score === 0) scoreDist["0"]++;
-    else if (score === 1) scoreDist["+1"]++;
-    else if (score >= 2) scoreDist["+2이상"]++;
+    if (score >= 3) {
+      category = 'STRONG_POSITIVE';
+      categoryLabel = '강한 긍정 (+3 이상)';
+      strongPosCount++;
+      scoreDist.STRONG_POS++;
+    } else if (score >= 1) {
+      category = 'POSITIVE';
+      categoryLabel = '긍정 (+1 ~ +2)';
+      posCount++;
+      scoreDist.POS++;
+    } else if (score <= -3) {
+      category = 'STRONG_NEGATIVE';
+      categoryLabel = '강한 부정 (-3 이하)';
+      strongNegCount++;
+      scoreDist.STRONG_NEG++;
+    } else if (score <= -1) {
+      category = 'NEGATIVE';
+      categoryLabel = '부정 (-1 ~ -2)';
+      negCount++;
+      scoreDist.NEG++;
+    } else {
+      category = 'NEUTRAL';
+      categoryLabel = '중립 (0)';
+      neutralCount++;
+      scoreDist.NEUTRAL++;
+    }
 
     const commentObj = {
       ...item,
       sentimentScore: score,
       sentimentCategory: category,
+      sentimentCategoryLabel: categoryLabel,
       matchedWords
     };
 
@@ -93,15 +149,22 @@ export function evaluateCommentsSentiment(analyzedComments, dictionary) {
     return commentObj;
   });
 
+  const total = analyzedComments.length || 1;
+  const totalPositive = strongPosCount + posCount;
+  const totalNegative = strongNegCount + negCount;
+
   return {
     comments: evaluatedList,
     summary: {
       total: analyzedComments.length,
-      positive: positiveCount,
+      strongPositive: strongPosCount,
+      positive: posCount,
       neutral: neutralCount,
-      negative: negativeCount,
-      positiveRatio: analyzedComments.length ? Math.round((positiveCount / analyzedComments.length) * 100) : 0,
-      negativeRatio: analyzedComments.length ? Math.round((negativeCount / analyzedComments.length) * 100) : 0
+      negative: negCount,
+      strongNegative: strongNegCount,
+      positiveRatio: Math.round((totalPositive / total) * 100),
+      negativeRatio: Math.round((totalNegative / total) * 100),
+      neutralRatio: Math.round((neutralCount / total) * 100)
     },
     scoreDist,
     bestPositive,
@@ -114,14 +177,11 @@ let barChartInstance = null;
 
 export function renderSentimentCharts(donutCanvasId, barCanvasId, sentimentData) {
   const Chart = window.Chart;
-  if (!Chart) {
-    console.error('Chart.js 라이브러리가 로드되지 않았습니다.');
-    return;
-  }
+  if (!Chart || !sentimentData) return;
 
   const { summary, scoreDist } = sentimentData;
 
-  // 1. Render Donut Chart
+  // 1. Render Donut Chart (5 Categories)
   const donutCanvas = document.getElementById(donutCanvasId);
   if (donutCanvas) {
     if (donutChartInstance) donutChartInstance.destroy();
@@ -129,10 +189,16 @@ export function renderSentimentCharts(donutCanvasId, barCanvasId, sentimentData)
     donutChartInstance = new Chart(donutCanvas, {
       type: 'doughnut',
       data: {
-        labels: ['긍정 (Positive)', '중립 (Neutral)', '부정 (Negative)'],
+        labels: ['강한 긍정 (+3 이상)', '긍정 (+1~+2)', '중립 (0)', '부정 (-1~-2)', '강한 부정 (-3 이하)'],
         datasets: [{
-          data: [summary.positive, summary.neutral, summary.negative],
-          backgroundColor: ['#10b981', '#64748b', '#f43f5e'],
+          data: [
+            summary.strongPositive,
+            summary.positive,
+            summary.neutral,
+            summary.negative,
+            summary.strongNegative
+          ],
+          backgroundColor: ['#059669', '#34d399', '#64748b', '#f43f5e', '#be123c'],
           borderColor: '#0f172a',
           borderWidth: 3
         }]
@@ -143,7 +209,7 @@ export function renderSentimentCharts(donutCanvasId, barCanvasId, sentimentData)
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { color: '#f8fafc', font: { family: 'Pretendard', size: 13 } }
+            labels: { color: '#f8fafc', font: { family: 'Pretendard', size: 12 } }
           }
         }
       }
@@ -155,14 +221,14 @@ export function renderSentimentCharts(donutCanvasId, barCanvasId, sentimentData)
   if (barCanvas) {
     if (barChartInstance) barChartInstance.destroy();
 
-    barCanvasInstance = new Chart(barCanvas, {
+    barChartInstance = new Chart(barCanvas, {
       type: 'bar',
       data: {
-        labels: ['-2 이하 (강한 부정)', '-1 (부정)', '0 (중립)', '+1 (긍정)', '+2 이상 (강한 긍정)'],
+        labels: ['강한 부정 (≤-3)', '부정 (-1,-2)', '중립 (0)', '긍정 (+1,+2)', '강한 긍정 (≥+3)'],
         datasets: [{
           label: '댓글 수',
-          data: [scoreDist["-2이하"], scoreDist["-1"], scoreDist["0"], scoreDist["+1"], scoreDist["+2이상"]],
-          backgroundColor: ['#e11d48', '#f43f5e', '#64748b', '#34d399', '#10b981'],
+          data: [scoreDist.STRONG_NEG, scoreDist.NEG, scoreDist.NEUTRAL, scoreDist.POS, scoreDist.STRONG_POS],
+          backgroundColor: ['#be123c', '#f43f5e', '#64748b', '#34d399', '#059669'],
           borderRadius: 6
         }]
       },

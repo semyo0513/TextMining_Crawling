@@ -1,6 +1,6 @@
 /**
  * Main Application Orchestrator & State Manager
- * Inline Stem Word Double-Click Editor & WordCloud Enlarge Modal Rendering Fix
+ * Collector Initial Tab & Single-Source Morphology Filter Binding Fix
  */
 
 import { escapeHTML, showToast, decodeDataFromHash, exportToCSV, exportToJSON, downloadSampleStopwords, downloadSampleSentimentDict, getSampleComments } from './utils.js';
@@ -20,7 +20,7 @@ export const AppState = {
   selectedWords: new Set(),
   networkData: { nodes: [], links: [] },
   sentimentData: null,
-  activeTab: 'dashboard',
+  activeTab: 'collector', // Default tab is Collector (댓글 수집기)
   filterWord: null,
   stopwords: new Set(['것', '수', '등', '영상', '댓글', '유튜브', '채널', '구독', '좋아요', '알림', '설정']),
   posFilter: ['NNG', 'NNP', 'VV', 'VA', 'MAG'],
@@ -218,6 +218,7 @@ function initMiningControls() {
     });
   }
 
+  // POS Checkboxes inside Morphology Tab
   const posCheckboxes = document.querySelectorAll('.pos-chk');
   posCheckboxes.forEach(chk => {
     chk.addEventListener('change', () => {
@@ -230,36 +231,31 @@ function initMiningControls() {
     });
   });
 
-  const auxToggle1 = document.getElementById('remove-aux-verbs-toggle');
-  const auxToggle2 = document.getElementById('tab-remove-aux-verbs');
-  const conjToggle1 = document.getElementById('remove-conjunctions-toggle');
-  const conjToggle2 = document.getElementById('tab-remove-conjunctions');
+  // Single-Source Toggles for Auxiliary Verbs & Conjunctions in Morphology Tab
+  const auxToggle = document.getElementById('tab-remove-aux-verbs');
+  const conjToggle = document.getElementById('tab-remove-conjunctions');
 
-  const syncToggles = () => {
-    AppState.removeAuxVerbs = auxToggle1?.checked || auxToggle2?.checked || false;
-    AppState.removeConjunctions = conjToggle1?.checked || conjToggle2?.checked || false;
+  if (auxToggle) {
+    auxToggle.addEventListener('change', (e) => {
+      AppState.removeAuxVerbs = e.target.checked;
+      if (AppState.comments.length) triggerTextMining();
+    });
+  }
 
-    if (auxToggle1 && auxToggle2) {
-      auxToggle1.checked = AppState.removeAuxVerbs;
-      auxToggle2.checked = AppState.removeAuxVerbs;
-    }
-    if (conjToggle1 && conjToggle2) {
-      conjToggle1.checked = AppState.removeConjunctions;
-      conjToggle2.checked = AppState.removeConjunctions;
-    }
-    if (AppState.comments.length) triggerTextMining();
-  };
-
-  if (auxToggle1) auxToggle1.addEventListener('change', syncToggles);
-  if (auxToggle2) auxToggle2.addEventListener('change', syncToggles);
-  if (conjToggle1) conjToggle1.addEventListener('change', syncToggles);
-  if (conjToggle2) conjToggle2.addEventListener('change', syncToggles);
+  if (conjToggle) {
+    conjToggle.addEventListener('change', (e) => {
+      AppState.removeConjunctions = e.target.checked;
+      if (AppState.comments.length) triggerTextMining();
+    });
+  }
 
   const applyBtn = document.getElementById('apply-morph-settings-btn');
   if (applyBtn) {
     applyBtn.addEventListener('click', () => {
-      syncToggles();
+      if (auxToggle) AppState.removeAuxVerbs = auxToggle.checked;
+      if (conjToggle) AppState.removeConjunctions = conjToggle.checked;
       showToast('형태소 정제 필터 재적용 완료', 'success');
+      if (AppState.comments.length) triggerTextMining();
     });
   }
 
@@ -667,12 +663,10 @@ function renderMorphologyPreviewTable() {
 
     const stemCell = tr.querySelector('.stem-cell');
     
-    // Single Click: Open Comment Modal
     stemCell.addEventListener('click', () => {
       openCommentModal(item.word);
     });
 
-    // Double Click: In-line Stem Text Editor!
     stemCell.addEventListener('dblclick', (e) => {
       e.stopPropagation();
       const currentWord = item.word;
@@ -690,14 +684,12 @@ function renderMorphologyPreviewTable() {
       const saveEdit = () => {
         const newWord = input.value.trim();
         if (newWord && newWord !== currentWord) {
-          // Rename word in rawTopWords & selectedWords
           item.word = newWord;
           if (AppState.selectedWords.has(currentWord)) {
             AppState.selectedWords.delete(currentWord);
             AppState.selectedWords.add(newWord);
           }
 
-          // Replace token form in analyzedComments
           AppState.analyzedComments.forEach(c => {
             if (c.tokens) {
               c.tokens.forEach(t => {

@@ -73,7 +73,7 @@
   <!-- Main Content Container -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-    <!-- Left Sidebar: Mining & Filter Controls -->
+    <!-- Left Sidebar: Mining Quick Options -->
     <aside class="lg:col-span-3 space-y-6">
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl space-y-5">
         <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
@@ -87,41 +87,6 @@
             <span class="text-blue-400 font-mono font-bold text-sm"><span id="min-len-val">2</span> 자 이상</span>
           </div>
           <input type="range" id="min-len-input" min="1" max="5" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
-        </div>
-
-        <!-- POS Checkboxes -->
-        <div class="space-y-2">
-          <label class="text-xs font-bold text-slate-300 block">포함할 품사 선택</label>
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
-              <input type="checkbox" id="pos-noun-chk" checked class="pos-chk accent-blue-500 rounded" value="NNG">
-              <span class="text-slate-200">명사 (NNG/NNP)</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
-              <input type="checkbox" id="pos-verb-chk" checked class="pos-chk accent-purple-500 rounded" value="VV">
-              <span class="text-slate-200">동사 (VV +다)</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
-              <input type="checkbox" id="pos-adj-chk" checked class="pos-chk accent-emerald-500 rounded" value="VA">
-              <span class="text-slate-200">형용사 (VA +다)</span>
-            </label>
-            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-900/60 border border-slate-700 cursor-pointer hover:bg-slate-900">
-              <input type="checkbox" id="pos-adv-chk" checked class="pos-chk accent-amber-500 rounded" value="MAG">
-              <span class="text-slate-200">부사 (MAG)</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Auxiliary Verbs & Conjunctions Toggles -->
-        <div class="space-y-2 text-xs">
-          <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/80 cursor-pointer hover:bg-slate-900">
-            <span class="text-slate-200 font-medium">보조용언 제거 (하다/보다/있다...)</span>
-            <input type="checkbox" id="remove-aux-verbs-toggle" checked class="accent-blue-500 w-4 h-4 rounded">
-          </label>
-          <label class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/80 cursor-pointer hover:bg-slate-900">
-            <span class="text-slate-200 font-medium">접속어 제거 (근데/원래/그렇게...)</span>
-            <input type="checkbox" id="remove-conjunctions-toggle" checked class="accent-blue-500 w-4 h-4 rounded">
-          </label>
         </div>
 
         <!-- Stopwords Custom File Download & Upload -->
@@ -178,13 +143,13 @@
     <!-- Right Main Dashboard & Visualizations (Col-span 9) -->
     <div class="lg:col-span-9 space-y-6">
 
-      <!-- Navigation Tabs -->
+      <!-- Navigation Tabs (Reordered: Collector is Tab 1) -->
       <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-1.5 flex flex-wrap gap-1">
-        <button class="tab-btn bg-blue-600 text-white shadow-md px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="dashboard">
-          <i class="fas fa-chart-pie"></i> 종합 대시보드
-        </button>
-        <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="collector">
+        <button class="tab-btn bg-blue-600 text-white shadow-md px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="collector">
           <i class="fas fa-cut text-blue-400"></i> 댓글 수집기 (북마클릿 / API)
+        </button>
+        <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="dashboard">
+          <i class="fas fa-chart-pie"></i> 종합 대시보드
         </button>
         <button class="tab-btn text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2" data-tab="morphology">
           <i class="fas fa-cogs text-purple-400"></i> ⚙️ 형태소 정제 &amp; 단어 선택
@@ -200,65 +165,8 @@
         </button>
       </div>
 
-      <!-- Tab 1: Comprehensive Dashboard -->
-      <section id="tab-dashboard" class="tab-panel space-y-6">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
-            <div class="text-xs text-slate-400 font-semibold mb-1">총 수집 댓글 수</div>
-            <div class="text-2xl font-black text-slate-100 font-mono" id="summary-total-comments">0</div>
-          </div>
-          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
-            <div class="text-xs text-slate-400 font-semibold mb-1">선택 정제 단어 수</div>
-            <div class="text-2xl font-black text-blue-400 font-mono" id="summary-unique-words">0</div>
-          </div>
-          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
-            <div class="text-xs text-slate-400 font-semibold mb-1">긍정 비중 (강한긍정 포함)</div>
-            <div class="text-2xl font-black text-emerald-400 font-mono" id="summary-positive-ratio">0%</div>
-          </div>
-          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
-            <div class="text-xs text-slate-400 font-semibold mb-1">부정 비중 (강한부정 포함)</div>
-            <div class="text-2xl font-black text-rose-400 font-mono" id="summary-negative-ratio">0%</div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col">
-            <div class="flex justify-between items-center mb-3">
-              <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <i class="fas fa-cloud text-purple-400"></i> 단어 빈도 워드클라우드
-              </h3>
-              <span class="text-[11px] text-slate-400">클릭시 팝업</span>
-            </div>
-            <div class="flex-1 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center min-h-[300px]">
-              <canvas id="wordcloud-canvas"></canvas>
-            </div>
-          </div>
-
-          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col">
-            <div class="flex justify-between items-center mb-3">
-              <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <i class="fas fa-chart-pie text-emerald-400"></i> 세분화 감정 극성 (5단계)
-              </h3>
-              <span class="text-[11px] text-slate-400">조각 클릭시 팝업</span>
-            </div>
-            <div class="flex-1 bg-slate-900 rounded-xl p-4 relative min-h-[300px] flex items-center justify-center">
-              <canvas id="dashboard-sentiment-donut" class="w-full h-full"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div id="best-positive-card" class="bg-emerald-950/30 border border-emerald-800/50 rounded-2xl p-4 text-xs text-slate-300">
-            <div class="text-slate-400 italic">댓글을 분석하면 대표 긍정 코멘트가 추출됩니다.</div>
-          </div>
-          <div id="worst-negative-card" class="bg-rose-950/30 border border-rose-800/50 rounded-2xl p-4 text-xs text-slate-300">
-            <div class="text-slate-400 italic">댓글을 분석하면 대표 부정 코멘트가 추출됩니다.</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Tab 2: Collector -->
-      <section id="tab-collector" class="tab-panel hidden space-y-6">
+      <!-- Tab 1: Collector (Default Active Tab) -->
+      <section id="tab-collector" class="tab-panel space-y-6">
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
           <div class="flex items-center justify-between border-b border-slate-700 pb-4">
             <div>
@@ -337,13 +245,70 @@
         </div>
       </section>
 
-      <!-- Tab 3: Morphological Cleaning & Word Selection Tab -->
+      <!-- Tab 2: Comprehensive Dashboard -->
+      <section id="tab-dashboard" class="tab-panel hidden space-y-6">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
+            <div class="text-xs text-slate-400 font-semibold mb-1">총 수집 댓글 수</div>
+            <div class="text-2xl font-black text-slate-100 font-mono" id="summary-total-comments">0</div>
+          </div>
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
+            <div class="text-xs text-slate-400 font-semibold mb-1">선택 정제 단어 수</div>
+            <div class="text-2xl font-black text-blue-400 font-mono" id="summary-unique-words">0</div>
+          </div>
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
+            <div class="text-xs text-slate-400 font-semibold mb-1">긍정 비중 (강한긍정 포함)</div>
+            <div class="text-2xl font-black text-emerald-400 font-mono" id="summary-positive-ratio">0%</div>
+          </div>
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 shadow-lg">
+            <div class="text-xs text-slate-400 font-semibold mb-1">부정 비중 (강한부정 포함)</div>
+            <div class="text-2xl font-black text-rose-400 font-mono" id="summary-negative-ratio">0%</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <i class="fas fa-cloud text-purple-400"></i> 단어 빈도 워드클라우드
+              </h3>
+              <span class="text-[11px] text-slate-400">클릭시 팝업</span>
+            </div>
+            <div class="flex-1 bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center min-h-[300px]">
+              <canvas id="wordcloud-canvas"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col">
+            <div class="flex justify-between items-center mb-3">
+              <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                <i class="fas fa-chart-pie text-emerald-400"></i> 세분화 감정 극성 (5단계)
+              </h3>
+              <span class="text-[11px] text-slate-400">조각 클릭시 팝업</span>
+            </div>
+            <div class="flex-1 bg-slate-900 rounded-xl p-4 relative min-h-[300px] flex items-center justify-center">
+              <canvas id="dashboard-sentiment-donut" class="w-full h-full"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div id="best-positive-card" class="bg-emerald-950/30 border border-emerald-800/50 rounded-2xl p-4 text-xs text-slate-300">
+            <div class="text-slate-400 italic">댓글을 분석하면 대표 긍정 코멘트가 추출됩니다.</div>
+          </div>
+          <div id="worst-negative-card" class="bg-rose-950/30 border border-rose-800/50 rounded-2xl p-4 text-xs text-slate-300">
+            <div class="text-slate-400 italic">댓글을 분석하면 대표 부정 코멘트가 추출됩니다.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Morphological Cleaning & Word Selection Tab (Unified POS Checkboxes & Filtering) -->
       <section id="tab-morphology" class="tab-panel hidden space-y-6">
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5">
           <div class="border-b border-slate-700 pb-3 flex flex-wrap justify-between items-center gap-3">
             <div>
               <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fas fa-cogs text-purple-400"></i> 형태소 정제 세부 설정 &amp; 분석 단어 선택 목록
+                <i class="fas fa-cogs text-purple-400"></i> ⚙️ 형태소 정제 세부 설정 &amp; 분석 단어 선택 목록
               </h3>
               <p class="text-xs text-slate-400">단어 원형을 <strong>더블클릭</strong>하면 인라인으로 직접 수정할 수 있습니다.</p>
             </div>
@@ -354,10 +319,34 @@
 
           <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
             <div class="md:col-span-5 space-y-4">
+              <!-- Unified POS Filter Card -->
+              <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 space-y-2.5">
+                <div class="text-xs font-bold text-blue-400 uppercase">1. 포함할 품사 선택 (POS Filter)</div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer hover:bg-slate-800">
+                    <input type="checkbox" id="pos-noun-chk" checked class="pos-chk accent-blue-500 rounded" value="NNG">
+                    <span class="text-slate-200">명사 (NNG/NNP)</span>
+                  </label>
+                  <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer hover:bg-slate-800">
+                    <input type="checkbox" id="pos-verb-chk" checked class="pos-chk accent-purple-500 rounded" value="VV">
+                    <span class="text-slate-200">동사 (VV +다)</span>
+                  </label>
+                  <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer hover:bg-slate-800">
+                    <input type="checkbox" id="pos-adj-chk" checked class="pos-chk accent-emerald-500 rounded" value="VA">
+                    <span class="text-slate-200">형용사 (VA +다)</span>
+                  </label>
+                  <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer hover:bg-slate-800">
+                    <input type="checkbox" id="pos-adv-chk" checked class="pos-chk accent-amber-500 rounded" value="MAG">
+                    <span class="text-slate-200">부사 (MAG)</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Unified Rules Filter Card -->
               <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 space-y-3">
-                <div class="text-xs font-bold text-blue-400 uppercase">불용어 &amp; 보조용언 필터 규칙</div>
+                <div class="text-xs font-bold text-purple-400 uppercase">2. 불용어 &amp; 보조용언 필터 규칙</div>
                 
-                <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer">
+                <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer hover:bg-slate-800">
                   <div>
                     <div class="text-xs font-bold text-slate-200">보조용언 (Auxiliary Verbs) 제거</div>
                     <div class="text-[11px] text-slate-400">하다, 보다, 되다, 있다, 없다, 오다, 가다...</div>
@@ -365,7 +354,7 @@
                   <input type="checkbox" id="tab-remove-aux-verbs" checked class="accent-blue-500 w-4 h-4 rounded">
                 </label>
 
-                <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer">
+                <label class="flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 border border-slate-700 cursor-pointer hover:bg-slate-800">
                   <div>
                     <div class="text-xs font-bold text-slate-200">접속어 &amp; 감탄사 (Conjunctions) 제거</div>
                     <div class="text-[11px] text-slate-400">근데, 원래, 그렇게, 저렇게, 그리고, 하지만...</div>
@@ -413,7 +402,7 @@
                 </button>
               </div>
 
-              <div class="flex-1 overflow-y-auto max-h-[420px] pr-1">
+              <div class="flex-1 overflow-y-auto max-h-[460px] pr-1">
                 <table class="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr class="border-b border-slate-800 text-slate-400 bg-slate-950/40 sticky top-0 z-10">

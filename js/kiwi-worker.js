@@ -1,35 +1,25 @@
 /**
  * Kiwi WASM & Advanced Korean Sub-Word Segmentation Engine
- * Handles unspaced compound words (카드찍자마자, 타는손님, 충격완전크다, 타야하는데, 졸이며, 에요)
+ * Handles unspaced compound words, colloquial typos, and compound noun particle endings
  */
-
-// Try loading official Kiwi WASM NLP library via CDN
-let kiwiNLP = null;
-try {
-  importScripts('https://cdn.jsdelivr.net/npm/kiwi-nlp@0.19.1/dist/kiwi.min.js');
-  if (typeof Kiwi !== 'undefined') {
-    kiwiNLP = new Kiwi();
-  }
-} catch (e) {
-  // CDN offline or worker fallback
-}
 
 // Standalone Particles & Endings to strictly reject (조사 / 어미 단독 추출 방지)
 const PARTICLE_AND_ENDING_REJECTS = new Set([
-  '에요', '이에요', '예요', '이다', '입니다', '이며', '이며는', '자마자', '는데', '은데', 'ㄴ데', '에서', '에서는',
+  '에요', '이에', '이에요', '예요', '이다', '입니다', '이며', '이며는', '자마자', '는데', '은데', 'ㄴ데', '에서', '에서는',
   '으로', '로', '에게', '에게는', '까지', '부터', '보다', '처럼', '라고', '하고', '이나', '나', '은', '는', '이', '가',
-  '을', '를', '에', '와', '과', '도', '만', '의', '였', '었', '았', '겠', '냐', '요', '죠', '네', '까'
+  '을', '를', '에', '와', '과', '도', '만', '의', '였', '었', '았', '겠', '냐', '요', '죠', '네', '까',
+  '이게', '그게', '저게', '이건', '그건', '저건', '이거', '그거', '이라', '이라서', '이라도', '이라는'
 ]);
 
 // Auxiliary Verbs
 const AUXILIARY_VERBS = new Set([
-  '하다', '보다', '되다', '있다', '없다', '오다', '가다', '주다', '받다', '시키다', '않다', '같다', '내다', '이다', '아니다', '않'
+  '하다', '보다', '되다', '있다', '없다', '오다', '가다', '주다', '받다', '시키다', '않다', '같다', '내다', '이다', '아니다', '않', '보이다'
 ]);
 
 // Conjunctions & Filler Words
 const CONJUNCTIONS_AND_FILLERS = new Set([
   '근데', '원래', '그렇게', '저렇게', '이렇게', '그리고', '하지만', '그래도', '아직', '정말', '진짜', '너무', '완전', '그냥',
-  '이거', '저거', '그거', '약간', '아무튼', '솔직히', '언제', '어디', '어떻게', '왜', '무슨', '어떤', '이런', '저런', '그런',
+  '이거', '저거', '그거', '이게', '그게', '저게', '이건', '그건', '저건', '약간', '아무튼', '솔직히', '언제', '어디', '어떻게', '왜', '무슨', '어떤', '이런', '저런', '그런',
   '영상', '댓글', '유튜브', '채널', '구독', '좋아요', '알림', '설정'
 ]);
 
@@ -42,6 +32,8 @@ const DEFAULT_STOPWORDS = new Set([
 // Known Sub-word Dictionary for Unspaced Korean Sentences (Max-Match Splitter)
 const SUBWORD_DICT = [
   // Nouns
+  { word: '타지역', tag: 'NNG' },
+  { word: '사람', tag: 'NNG' },
   { word: '카드', tag: 'NNG' },
   { word: '손님', tag: 'NNG' },
   { word: '충격', tag: 'NNG' },
@@ -62,6 +54,7 @@ const SUBWORD_DICT = [
   { word: '과정', tag: 'NNG' },
 
   // Verbs & Adjectives
+  { word: '많다', matchRegex: /^많아(?:보야요|보여요|보임|보인다|서|고|면|다)?$/, tag: 'VA' },
   { word: '찍다', matchRegex: /^찍(?:자마자|고|는|어|었|은|을|게)?$/, tag: 'VV' },
   { word: '타다', matchRegex: /^타(?:야하는데|는|고|서|면|자마자|어|았)?$/, tag: 'VV' },
   { word: '크다', matchRegex: /^크(?:다|고|게|면|어|서|아)?$/, tag: 'VA' },
@@ -77,13 +70,22 @@ const SUBWORD_DICT = [
 ];
 
 /**
- * Sub-word max-match segmenter for unspaced compound phrases (e.g. "카드찍자마자", "타는손님", "충격완전크다", "타야하는데")
+ * Sub-word max-match segmenter for unspaced compound phrases
  */
 function segmentUnspacedPhrase(rawChunk) {
   const tokens = [];
   let remaining = rawChunk;
 
   // 1. Direct regex match check for known compound patterns
+  if (/^타지역사람/.test(remaining)) {
+    tokens.push({ form: '타지역', tag: 'NNG', raw: '타지역' });
+    tokens.push({ form: '사람', tag: 'NNG', raw: '사람' });
+    return tokens;
+  }
+  if (/^많아보(?:야요|여요|임|인다)$/.test(remaining)) {
+    tokens.push({ form: '많다', tag: 'VA', raw: '많아보여요' });
+    return tokens;
+  }
   if (/^카드찍/.test(remaining)) {
     tokens.push({ form: '카드', tag: 'NNG', raw: '카드' });
     tokens.push({ form: '찍다', tag: 'VV', raw: '찍자마자' });
@@ -102,10 +104,6 @@ function segmentUnspacedPhrase(rawChunk) {
   }
   if (/^타야하는데$/.test(remaining)) {
     tokens.push({ form: '타다', tag: 'VV', raw: '타야' });
-    return tokens; // "하는데" is auxiliary verb -> filtered out
-  }
-  if (/^졸이며$/.test(remaining)) {
-    tokens.push({ form: '졸이다', tag: 'VV', raw: '졸이며' });
     return tokens;
   }
 
@@ -128,7 +126,6 @@ function segmentUnspacedPhrase(rawChunk) {
     }
 
     if (!matched) {
-      // If remaining chunk cannot be segmented, break to avoid infinite loop
       break;
     }
   }
@@ -165,9 +162,14 @@ function advancedTokenize(text, options = {}) {
     rawWord = rawWord.trim();
     if (!rawWord) continue;
 
-    // Reject standalone particles/endings (e.g. "에요", "이며", "자마자")
-    if (PARTICLE_AND_ENDING_REJECTS.has(rawWord)) {
+    // Reject standalone particles/endings/fillers
+    if (PARTICLE_AND_ENDING_REJECTS.has(rawWord) || CONJUNCTIONS_AND_FILLERS.has(rawWord)) {
       continue;
+    }
+
+    // Strip compound noun particle endings (-이라, -이라서, -이라는)
+    if (/(?:이라|이라서|이라는|이라도)$/.test(rawWord) && rawWord.length >= 3) {
+      rawWord = rawWord.replace(/(?:이라|이라서|이라는|이라도)$/, '');
     }
 
     // Try sub-word segmentation for unspaced compound phrases
@@ -183,6 +185,9 @@ function advancedTokenize(text, options = {}) {
         const root = rawWord.replace(/(?:하며|하며는|하여|하더니|하고|해서|하면|하시|하셔|하고서|해야|했어|했어요|했습니다|했다|했음|했지|합니다|하세요|하는|함)$/, '');
         stemmed = root ? root + '하다' : '하다';
         posTag = 'VV';
+      } else if (/(?:많아보야요|많아보여요|많아보임|많아보인다)$/.test(rawWord)) {
+        stemmed = '많다';
+        posTag = 'VA';
       } else if (/(?:졸이며|졸여|졸여서|졸이다|조리며)$/.test(rawWord)) {
         stemmed = '졸이다';
         posTag = 'VV';
@@ -232,7 +237,7 @@ function advancedTokenize(text, options = {}) {
         stemmed = '최고다';
         posTag = 'VA';
       } else if (/(?:입니다|이에|예요|이란|에요)$/.test(rawWord)) {
-        continue; // Drop standalone copula/endings
+        continue;
       } else if (/(?:이며|면서|하며|고|게|지|면|서|려고|니까|지만)$/.test(rawWord) && rawWord.length >= 3) {
         const rootCandidate = rawWord.replace(/(?:이며|면서|하며|고|게|지|면|서|려고|니까|지만)$/, '');
         if (rootCandidate.length >= 1) {
